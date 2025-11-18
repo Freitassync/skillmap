@@ -29,6 +29,27 @@ export const COLORS = {
     error: '#EF4444',
     info: '#3B82F6',
   },
+  // Color variants
+  success: {
+    main: '#10B981',
+    light: '#34D399',
+    dark: '#059669',
+  },
+  warning: {
+    main: '#FACC15',
+    light: '#FDE047',
+    dark: '#EAB308',
+  },
+  error: {
+    main: '#EF4444',
+    light: '#F87171',
+    dark: '#DC2626',
+  },
+  info: {
+    main: '#3B82F6',
+    light: '#60A5FA',
+    dark: '#2563EB',
+  },
   // Overlay
   overlay: 'rgba(0, 0, 0, 0.7)',
 } as const;
@@ -98,7 +119,7 @@ export const VALIDATION = {
     regex: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/,
     message: 'Senha deve conter ao menos 6 caracteres, uma maiúscula, uma minúscula e um número',
   },
-  nome: {
+  name: {
     minLength: 3,
     maxLength: 50,
     regex: /^[a-zA-ZÀ-ÿ\s]+$/,
@@ -135,7 +156,7 @@ export const MESSAGES = {
     campoObrigatorio: 'Este campo é obrigatório',
     emailInvalido: 'Email inválido',
     senhaFraca: VALIDATION.senha.message,
-    nomeInvalido: VALIDATION.nome.message,
+    nameInvalido: VALIDATION.name.message,
   },
 } as const;
 
@@ -150,11 +171,11 @@ export const GAMIFICATION = {
     porDiaDeEstudo: 10,
   },
   niveis: [
-    { nivel: 1, xpNecessario: 0, titulo: 'Iniciante' },
-    { nivel: 2, xpNecessario: 500, titulo: 'Aprendiz' },
-    { nivel: 3, xpNecessario: 1500, titulo: 'Praticante' },
-    { nivel: 4, xpNecessario: 3000, titulo: 'Especialista' },
-    { nivel: 5, xpNecessario: 5000, titulo: 'Mestre' },
+    { level: 1, xpNecessario: 0, title: 'Iniciante' },
+    { level: 2, xpNecessario: 500, title: 'Aprendiz' },
+    { level: 3, xpNecessario: 1500, title: 'Praticante' },
+    { level: 4, xpNecessario: 3000, title: 'Especialista' },
+    { level: 5, xpNecessario: 5000, title: 'Mestre' },
   ],
 } as const;
 

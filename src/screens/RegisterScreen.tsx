@@ -6,7 +6,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +18,7 @@ import { Button, Input } from '../components';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, MESSAGES } from '../constants';
 import { validateCadastroForm, sanitizeEmail, sanitizeNome } from '../utils/validation';
 import type { FormErrors } from '../types/models';
+import { Alert } from '../utils/alert';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const isSmallDevice = SCREEN_WIDTH < 375;
@@ -29,7 +29,7 @@ const CadastroScreen: React.FC = () => {
   const navigation = useNavigation<CadastroScreenNavigationProp>();
   const { cadastrar, isLoading } = useAuth();
 
-  const [nome, setNome] = useState('');
+  const [name, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmacaoSenha, setConfirmacaoSenha] = useState('');
@@ -38,7 +38,7 @@ const CadastroScreen: React.FC = () => {
   const handleCadastro = async () => {
     // Valida formulário
     const formErrors = validateCadastroForm({
-      nome,
+      name,
       email,
       senha,
       confirmacao_senha: confirmacaoSenha,
@@ -52,12 +52,12 @@ const CadastroScreen: React.FC = () => {
     setErrors({});
 
     // Sanitiza dados
-    const nomeLimpo = sanitizeNome(nome);
+    const nameLimpo = sanitizeNome(name);
     const emailLimpo = sanitizeEmail(email);
 
     // Tenta cadastrar
     const sucesso = await cadastrar({
-      nome: nomeLimpo,
+      name: nameLimpo,
       email: emailLimpo,
       senha,
       confirmacao_senha: confirmacaoSenha,
@@ -97,12 +97,12 @@ const CadastroScreen: React.FC = () => {
           <Input
             label="Nome completo"
             placeholder="João Silva"
-            value={nome}
+            value={name}
             onChangeText={(text) => {
               setNome(text);
-              if (errors.nome) setErrors({ ...errors, nome: '' });
+              if (errors.name) setErrors({ ...errors, name: '' });
             }}
-            error={errors.nome}
+            error={errors.name}
             autoCapitalize="words"
             editable={!isLoading}
           />

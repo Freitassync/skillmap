@@ -1,47 +1,73 @@
 // ===========================
-// Interfaces de Domínio
+// Domain Interfaces
 // ===========================
 
-export interface IUsuario {
+export interface IUser {
   id: string;
-  nome: string;
+  name: string;
   email: string;
-  senha_hash?: string; // Adicionado para SQLite
-  nivel_xp: number;
-  xp_atual?: number; // Adicionado para gamification
-  data_criacao: string;
-  ultimo_onboarding?: string; // Adicionado para controle de onboarding
+  password_hash?: string;
+  xp_level: number;
+  current_xp?: number;
+  creation_date: string;
+  last_onboarding?: string;
 }
 
 export interface ISkill {
   id: string;
-  nome: string;
-  tipo: 'hard' | 'soft';
-  descricao: string;
-  categoria?: string; // Adicionado para categorização
+  name: string;
+  type: 'hard' | 'soft';
+  description: string;
+  category?: string;
+}
+
+export interface ISkillMilestone {
+  level: number;
+  title: string;
+  objectives: string[];
+  completed: boolean;
+}
+
+export interface ISkillResource {
+  id: string;
+  skill_id: string;
+  type: 'course' | 'article' | 'video' | 'documentation' | 'tutorial' | 'project' | 'exercise' | 'podcast';
+  title: string;
+  url: string;
+  platform?: string;
+  is_free: boolean;
 }
 
 export interface IRoadmap {
   id: string;
-  usuario_id: string;
-  nome_carreira: string;
-  titulo?: string; // Alias para compatibilidade
-  objetivo_carreira?: string; // Adicionado para SQLite
-  nivel_experiencia?: string; // Adicionado para SQLite
-  progresso_percentual: number;
-  data_criacao: string;
-  data_atualizacao: string;
+  userId: string;
+  title: string;
+  careerGoal: string;
+  experience: string;
+  percentualProgress: number;
+  creationDate: string;
+  skills?: any[];
+}
+
+export interface IPrerequisiteSkill {
+  id: string;
+  name: string;
 }
 
 export interface IRoadmapSkill {
   id: string;
   roadmap_id: string;
-  skill_id?: string; // Adicionado para SQLite foreign key
+  skill_id?: string;
   skill: ISkill;
-  ordem?: number; // Adicionado para ordem das skills
+  order?: number;
   status: 'pendente' | 'concluido';
-  concluida?: boolean; // Alias para compatibilidade (status === 'concluido')
-  data_conclusao?: string;
+  is_concluded?: boolean;
+  conclusion_date?: string;
+  milestones?: ISkillMilestone[];
+  learning_objectives?: string;
+  prerequisites?: IPrerequisiteSkill[];
+  estimated_hours?: number;
+  resources?: ISkillResource[];
 }
 
 // ===========================
@@ -53,26 +79,27 @@ export interface LoginDTO {
   senha: string;
 }
 
-export interface CadastroDTO {
-  nome: string;
+export interface RegisterDTO {
+  name: string;
   email: string;
   senha: string;
   confirmacao_senha: string;
 }
 
-export interface CriarRoadmapDTO {
-  nome_carreira: string;
-  hard_skills_atuais: string[];
-  soft_skills_atuais: string[];
+export interface CreateRoadmapDTO {
+  title: string;
+  career_goal: string;
+  experience: string;
+  skills: string[];
 }
 
 // ===========================
-// Tipos de Retorno de Serviços
+// Service Return Types
 // ===========================
 
 export interface AuthResult {
   success: boolean;
-  usuario?: IUsuario;
+  user?: IUser;
   error?: string;
 }
 
@@ -84,7 +111,7 @@ export interface RoadmapResult {
 }
 
 // ===========================
-// Estados de UI
+// UI State
 // ===========================
 
 export interface FormErrors {

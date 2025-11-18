@@ -6,7 +6,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,6 +17,7 @@ import { useAuthContext } from '../contexts/AuthContext';
 import { Button, Input, SuccessAlert } from '../components';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, MESSAGES } from '../constants';
 import { validateLoginForm, sanitizeEmail } from '../utils/validation';
+import { Alert } from '../utils/alert';
 import type { FormErrors } from '../types/models';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');

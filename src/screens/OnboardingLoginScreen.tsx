@@ -49,14 +49,14 @@ const tutorialSteps = [
 
 const OnboardingLoginScreen: React.FC<Props> = ({ navigation }) => {
   const [currentStep, setCurrentStep] = useState(0);
-  const { usuario } = useAuth();
+  const { user } = useAuth();
 
   const markOnboardingComplete = async () => {
-    if (usuario) {
+    if (user) {
       try {
-        const onboardingKey = `${STORAGE_KEYS.ONBOARDING}_login_${usuario.id}`;
+        const onboardingKey = `${STORAGE_KEYS.ONBOARDING}_login_${user.id}`;
         await AsyncStorage.setItem(onboardingKey, 'true');
-        console.log('✅ Onboarding marked as complete for user:', usuario.id);
+        console.log('✅ Onboarding marked as complete for user:', user.id);
       } catch (error) {
         console.error('Error marking onboarding as complete:', error);
       }

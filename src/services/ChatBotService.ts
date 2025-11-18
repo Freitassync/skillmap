@@ -1,5 +1,4 @@
-import { OPENAI_API_KEY } from '@env';
-import DatabaseService from './DatabaseService';
+import ApiClient from './ApiClient';
 
 export interface ChatMessage {
   id: string;
@@ -9,29 +8,13 @@ export interface ChatMessage {
 }
 
 /**
- * ChatBotService - Integração com OpenAI GPT para assistente de carreira
+ * ChatBotService - Integração com Backend API para assistente de carreira
  */
 class ChatBotService {
   private static instance: ChatBotService;
-  private apiKey: string;
-  private apiUrl = 'https://api.openai.com/v1/chat/completions';
-  private model = 'gpt-3.5-turbo';
-
-  private systemPrompt = `Você é um assistente virtual especializado em desenvolvimento de carreira e requalificação profissional (reskilling). 
-Seu objetivo é ajudar profissionais a:
-- Identificar habilidades necessárias para novas carreiras
-- Criar planos de aprendizado personalizados
-- Orientar sobre transições de carreira
-- Sugerir recursos de aprendizado
-- Dar feedback sobre progresso e roadmaps
-
-Seja sempre encorajador, prático e forneça conselhos acionáveis. Use exemplos concretos quando possível.`;
 
   private constructor() {
-    this.apiKey = OPENAI_API_KEY;
-    if (!this.apiKey || this.apiKey.trim() === '') {
-      console.warn('⚠️  OpenAI API Key not configured. ChatBot will work in mock mode.');
-    }
+    // Singleton instance
   }
 
   public static getInstance(): ChatBotService {
@@ -42,89 +25,39 @@ Seja sempre encorajador, prático e forneça conselhos acionáveis. Use exemplos
   }
 
   /**
-   * Envia mensagem para o ChatGPT e retorna resposta
+   * Envia mensagem para o ChatBot via Backend API
    */
   public async sendMessage(
-    usuarioId: string,
+    userId: string,
     message: string,
     conversationHistory: ChatMessage[] = []
   ): Promise<ChatMessage> {
     console.log('🤖 ChatBotService.sendMessage called');
-    console.log('  User ID:', usuarioId);
+    console.log('  User ID:', userId);
     console.log('  Message:', message);
     console.log('  History length:', conversationHistory.length);
-    
+
     try {
-      // Salva mensagem do usuário no banco
-      console.log('💾 Saving user message to database...');
-      await DatabaseService.saveChatMessage(usuarioId, 'user', message);
-      console.log('✅ User message saved');
-
-      // Se não houver API key, retorna resposta mock
-      if (!this.apiKey || this.apiKey.trim() === '') {
-        console.log('⚠️  No API key configured, using mock response');
-        return this.getMockResponse(message);
-      }
-
-      console.log('🔑 API key configured, calling OpenAI...');
-      // Prepara histórico para contexto
-      const messages = [
-        { role: 'system', content: this.systemPrompt },
-        ...conversationHistory.map(msg => ({
-          role: msg.role,
-          content: msg.content
-        })),
-        { role: 'user', content: message }
-      ];
-
-      console.log(`📡 Sending request to OpenAI (${messages.length} messages in context)...`);
-      // Chama API da OpenAI
-      const response = await fetch(this.apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: messages,
-          temperature: 0.7,
-          max_tokens: 500,
-        }),
+      // Send message to backend API
+      const response = await ApiClient.post<{ message: ChatMessage }>('/chat/send', {
+        user_id: userId,
+        message: message,
       });
 
-      console.log('📥 OpenAI response status:', response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ OpenAI API Error:', errorData);
-        throw new Error(`OpenAI API error: ${response.status}`);
+      if (!response.success || !response.data) {
+        console.error('❌ Erro ao enviar mensagem:', response.error);
+        throw new Error(response.error || 'Erro ao enviar mensagem');
       }
 
-      const data = await response.json();
-      console.log('✅ OpenAI response received');
-      const assistantMessage = data.choices[0]?.message?.content || 'Desculpe, não consegui processar sua mensagem.';
+      console.log('✅ Resposta recebida do backend');
 
-      // Salva resposta do assistente no banco
-      console.log('💾 Saving assistant response to database...');
-      await DatabaseService.saveChatMessage(usuarioId, 'assistant', assistantMessage);
-      console.log('✅ Assistant message saved');
-
-      const chatMessage: ChatMessage = {
-        id: `msg_${Date.now()}`,
-        role: 'assistant',
-        content: assistantMessage,
-        timestamp: new Date(),
-      };
-
-      return chatMessage;
-
+      return response.data.message;
     } catch (error) {
       console.error('❌ Error in ChatBotService.sendMessage:', error);
       console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
       console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
-      
-      // Em caso de erro, retorna mensagem de fallback
+
+      // Fallback error message
       const fallbackMessage: ChatMessage = {
         id: `msg_${Date.now()}`,
         role: 'assistant',
@@ -137,73 +70,23 @@ Seja sempre encorajador, prático e forneça conselhos acionáveis. Use exemplos
   }
 
   /**
-   * Resposta mock quando API key não está configurada (modo de desenvolvimento)
+   * Carrega histórico de conversas do backend
    */
-  private getMockResponse(message: string): ChatMessage {
-    const lowerMessage = message.toLowerCase();
-    
-    let response = '';
-
-    if (lowerMessage.includes('roadmap') || lowerMessage.includes('plano')) {
-      response = `Ótima escolha! Para criar um roadmap eficaz de ${lowerMessage}, recomendo:
-
-1. **Avalie suas skills atuais** - Identifique gaps de conhecimento
-2. **Defina objetivos claros** - Onde você quer estar em 6-12 meses?
-3. **Divida em etapas** - Metas pequenas e alcançáveis
-4. **Pratique regularmente** - Consistência é mais importante que intensidade
-
-Posso te ajudar a detalhar alguma dessas etapas?`;
-    } else if (lowerMessage.includes('carreira') || lowerMessage.includes('transição')) {
-      response = `Mudanças de carreira são desafiadoras mas muito recompensadoras! Algumas dicas importantes:
-
-✅ Identifique habilidades transferíveis da sua carreira atual
-✅ Faça networking na nova área (LinkedIn, eventos, comunidades)
-✅ Comece com projetos paralelos para ganhar experiência
-✅ Considere certificações relevantes
-✅ Seja paciente - transições levam tempo
-
-Sobre qual área você está pensando em migrar?`;
-    } else if (lowerMessage.includes('habilidade') || lowerMessage.includes('skill')) {
-      response = `Desenvolver novas habilidades é fundamental! Aqui está meu framework:
-
-🎯 **Hard Skills**: Competências técnicas (programação, design, análise de dados)
-💡 **Soft Skills**: Competências comportamentais (comunicação, liderança, trabalho em equipe)
-
-Dica: Combine 70% de prática + 20% de aprendizado social + 10% de teoria (regra 70-20-10).
-
-Qual skill você quer desenvolver primeiro?`;
-    } else {
-      response = `Olá! Sou seu assistente de carreira IA. Estou aqui para ajudar você com:
-
-📚 Planejamento de roadmaps de aprendizado
-🎯 Orientação sobre transição de carreira
-💼 Desenvolvimento de habilidades (hard e soft skills)
-📈 Estratégias de crescimento profissional
-
-Como posso te ajudar hoje?`;
-    }
-
-    return {
-      id: `msg_${Date.now()}`,
-      role: 'assistant',
-      content: response,
-      timestamp: new Date(),
-    };
-  }
-
-  /**
-   * Carrega histórico de conversas do banco de dados
-   */
-  public async loadChatHistory(usuarioId: string): Promise<ChatMessage[]> {
-    console.log('📚 ChatBotService.loadChatHistory called for user:', usuarioId);
+  public async loadChatHistory(userId: string): Promise<ChatMessage[]> {
+    console.log('📚 ChatBotService.loadChatHistory called for user:', userId);
     try {
-      const history = await DatabaseService.getChatHistory(usuarioId, 50);
-      console.log(`✅ Retrieved ${history.length} messages from database`);
-      
-      const chatMessages = history.map((msg, index) => ({
-        id: `msg_${index}_${msg.timestamp}`,
-        role: msg.role as 'user' | 'assistant' | 'system',
-        content: msg.content,
+      const response = await ApiClient.get<{ messages: ChatMessage[] }>(`/chat/history/${userId}`);
+
+      if (!response.success || !response.data) {
+        console.error('❌ Erro ao carregar histórico:', response.error);
+        return [];
+      }
+
+      console.log(`✅ Retrieved ${response.data.messages.length} messages from backend`);
+
+      // Convert timestamp strings to Date objects
+      const chatMessages = response.data.messages.map((msg) => ({
+        ...msg,
         timestamp: new Date(msg.timestamp),
       }));
 
@@ -218,9 +101,18 @@ Como posso te ajudar hoje?`;
   /**
    * Limpa histórico de conversas
    */
-  public async clearChatHistory(usuarioId: string): Promise<void> {
+  public async clearChatHistory(userId: string): Promise<void> {
     try {
-      await DatabaseService.clearChatHistory(usuarioId);
+      console.log('🗑️  ChatBotService.clearChatHistory called for user:', userId);
+
+      const response = await ApiClient.delete(`/chat/history/${userId}`);
+
+      if (!response.success) {
+        console.error('❌ Erro ao limpar histórico:', response.error);
+        return;
+      }
+
+      console.log('✅ Chat history cleared successfully');
     } catch (error) {
       console.error('Error clearing chat history:', error);
     }
@@ -229,7 +121,7 @@ Como posso te ajudar hoje?`;
   /**
    * Gera sugestões contextuais baseadas no roadmap do usuário
    */
-  public async getSuggestions(usuarioId: string, context: string): Promise<string[]> {
+  public async getSuggestions(userId: string, context: string): Promise<string[]> {
     const suggestions = [
       'Como posso melhorar minhas soft skills?',
       'Quais recursos você recomenda para aprender programação?',

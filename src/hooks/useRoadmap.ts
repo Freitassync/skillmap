@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import RoadmapService from '../services/RoadmapService';
-import type { IRoadmap, IRoadmapSkill, CriarRoadmapDTO } from '../types/models';
+import type { IRoadmap, IRoadmapSkill, CreateRoadmapDTO } from '../types/models';
 
 interface UseRoadmapReturn {
   roadmaps: IRoadmap[];
   isLoading: boolean;
   error: string | null;
-  carregarRoadmaps: (usuarioId: string) => Promise<void>;
-  criarRoadmap: (usuarioId: string, dto: CriarRoadmapDTO) => Promise<IRoadmap | null>;
+  carregarRoadmaps: (userId: string) => Promise<void>;
+  criarRoadmap: (userId: string, dto: CreateRoadmapDTO) => Promise<IRoadmap | null>;
   deletarRoadmap: (roadmapId: string) => Promise<boolean>;
 }
 
@@ -15,7 +15,8 @@ interface UseRoadmapSkillsReturn {
   skills: IRoadmapSkill[];
   isLoading: boolean;
   carregarSkills: (roadmapId: string) => Promise<void>;
-  marcarConcluida: (roadmapId: string, skillId: string) => Promise<number>;
+  marcarConcluida: (roadmapId: string, skillId: string) => Promise<boolean>;
+  atualizarMilestone: (roadmapId: string, skillId: string, milestoneLevel: number, completed: boolean) => Promise<boolean>;
 }
 
 /**
@@ -26,11 +27,11 @@ export const useRoadmap = (): UseRoadmapReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const carregarRoadmaps = useCallback(async (usuarioId: string): Promise<void> => {
+  const carregarRoadmaps = useCallback(async (userId: string): Promise<void> => {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await RoadmapService.carregarRoadmaps(usuarioId);
+      const data = await RoadmapService.carregarRoadmaps(userId);
       setRoadmaps(data);
     } catch (err) {
       setError('Erro ao carregar roadmaps');
@@ -41,12 +42,12 @@ export const useRoadmap = (): UseRoadmapReturn => {
   }, []);
 
   const criarRoadmap = useCallback(
-    async (usuarioId: string, dto: CriarRoadmapDTO): Promise<IRoadmap | null> => {
+    async (userId: string, dto: CreateRoadmapDTO): Promise<IRoadmap | null> => {
       try {
         setIsLoading(true);
         setError(null);
 
-        const result = await RoadmapService.criarRoadmap(usuarioId, dto);
+        const result = await RoadmapService.criarRoadmap(userId, dto);
 
         if (result.success && result.roadmap) {
           setRoadmaps((prev) => [...prev, result.roadmap!]);
@@ -114,7 +115,7 @@ export const useRoadmapSkills = (): UseRoadmapSkillsReturn => {
   }, []);
 
   const marcarConcluida = useCallback(
-    async (roadmapId: string, skillId: string): Promise<number> => {
+    async (roadmapId: string, skillId: string): Promise<boolean> => {
       try {
         const result = await RoadmapService.marcarSkillConcluida(roadmapId, skillId);
 
@@ -122,18 +123,46 @@ export const useRoadmapSkills = (): UseRoadmapSkillsReturn => {
           setSkills((prev) =>
             prev.map((skill) =>
               skill.id === skillId
-                ? { ...skill, status: 'concluido', data_conclusao: new Date().toISOString() }
+                ? { ...skill, status: 'concluido', conclusion_date: new Date().toISOString() }
                 : skill
             )
           );
 
-          return result.xpGanho || 0;
+          return true;
         }
 
-        return 0;
+        return false;
       } catch (err) {
         console.error('Erro ao marcar skill concluída:', err);
-        return 0;
+        return false;
+      }
+    },
+    []
+  );
+
+  const atualizarMilestone = useCallback(
+    async (roadmapId: string, skillId: string, milestoneLevel: number, completed: boolean): Promise<boolean> => {
+      try {
+        const result = await RoadmapService.updateMilestoneCompletion(
+          roadmapId,
+          skillId,
+          milestoneLevel,
+          completed
+        );
+
+        if (result.success && result.skill) {
+          setSkills((prev) =>
+            prev.map((skill) =>
+              skill.id === skillId ? result.skill! : skill
+            )
+          );
+          return true;
+        }
+
+        return false;
+      } catch (err) {
+        console.error('Erro ao atualizar milestone:', err);
+        return false;
       }
     },
     []
@@ -144,5 +173,6 @@ export const useRoadmapSkills = (): UseRoadmapSkillsReturn => {
     isLoading,
     carregarSkills,
     marcarConcluida,
+    atualizarMilestone,
   };
 };

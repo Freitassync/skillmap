@@ -25,24 +25,24 @@ export type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamL
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
-  const { usuario, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { roadmaps, isLoading, carregarRoadmaps } = useRoadmap();
 
   // Recarrega roadmaps quando a tela ganha foco
   useFocusEffect(
     useCallback(() => {
       console.log('🏠 HomeScreen ganhou foco, recarregando roadmaps...');
-      if (usuario) {
-        carregarRoadmaps(usuario.id);
+      if (user) {
+        carregarRoadmaps(user.id);
       }
-    }, [usuario, carregarRoadmaps])
+    }, [user, carregarRoadmaps])
   );
 
   const getNivelAtual = () => {
-    if (!usuario) return null;
+    if (!user) return null;
 
     for (let i = GAMIFICATION.niveis.length - 1; i >= 0; i--) {
-      if (usuario.nivel_xp >= GAMIFICATION.niveis[i].xpNecessario) {
+      if (user.xp_level >= GAMIFICATION.niveis[i].xpNecessario) {
         return GAMIFICATION.niveis[i];
       }
     }
@@ -51,33 +51,33 @@ const HomeScreen: React.FC = () => {
   };
 
   const getProximoNivel = () => {
-    const nivelAtual = getNivelAtual();
-    if (!nivelAtual) return null;
+    const levelAtual = getNivelAtual();
+    if (!levelAtual) return null;
 
-    const index = GAMIFICATION.niveis.findIndex((n) => n.nivel === nivelAtual.nivel);
+    const index = GAMIFICATION.niveis.findIndex((n) => n.level === levelAtual.level);
     return GAMIFICATION.niveis[index + 1] || null;
   };
 
   const calcularProgressoNivel = () => {
-    const nivelAtual = getNivelAtual();
+    const levelAtual = getNivelAtual();
     const proximoNivel = getProximoNivel();
 
-    if (!usuario || !nivelAtual || !proximoNivel) return 0;
+    if (!user || !levelAtual || !proximoNivel) return 0;
 
-    const xpNoNivelAtual = usuario.nivel_xp - nivelAtual.xpNecessario;
-    const xpNecessarioParaProximo = proximoNivel.xpNecessario - nivelAtual.xpNecessario;
+    const xpNoNivelAtual = (user.current_xp || 0) - levelAtual.xpNecessario;
+    const xpNecessarioParaProximo = proximoNivel.xpNecessario - levelAtual.xpNecessario;
 
     return Math.round((xpNoNivelAtual / xpNecessarioParaProximo) * 100);
   };
 
-  const nivelAtual = getNivelAtual();
+  const levelAtual = getNivelAtual();
   const proximoNivel = getProximoNivel();
   const progressoNivel = calcularProgressoNivel();
 
-  const roadmapsAtivos = roadmaps.filter((r) => r.progresso_percentual < 100);
-  const roadmapsConcluidos = roadmaps.filter((r) => r.progresso_percentual === 100);
+  const roadmapsAtivos = roadmaps.filter((r) => r.percentualProgress < 100);
+  const roadmapsConcluidos = roadmaps.filter((r) => r.percentualProgress === 100);
 
-  if (!usuario) {
+  if (!user) {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.loadingContainer}>
@@ -97,9 +97,9 @@ const HomeScreen: React.FC = () => {
       {/* Header com dados do usuário */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Olá, {usuario.nome}!</Text>
-          <Text style={styles.nivelText}>
-            {nivelAtual?.titulo} • {usuario.nivel_xp} XP
+          <Text style={styles.greeting}>Olá, {user.name}!</Text>
+          <Text style={styles.levelText}>
+            {levelAtual?.title} • {user.current_xp} XP
           </Text>
         </View>
 
@@ -116,7 +116,7 @@ const HomeScreen: React.FC = () => {
         </View>
         {proximoNivel && (
           <Text style={styles.progressText}>
-            {progressoNivel}% até {proximoNivel.titulo}
+            {progressoNivel}% até {proximoNivel.title}
           </Text>
         )}
       </Card>
@@ -172,14 +172,14 @@ const HomeScreen: React.FC = () => {
               >
                 <Card style={styles.roadmapCard}>
                   <View style={styles.roadmapHeader}>
-                    <Text style={styles.roadmapTitle}>{roadmap.nome_carreira}</Text>
-                    <Text style={styles.roadmapProgress}>{roadmap.progresso_percentual}%</Text>
+                    <Text style={styles.roadmapTitle}>{roadmap.title}</Text>
+                    <Text style={styles.roadmapProgress}>{roadmap.percentualProgress}%</Text>
                   </View>
                   <View style={styles.progressBarContainer}>
                     <View
                       style={[
                         styles.progressBar,
-                        { width: `${roadmap.progresso_percentual}%` },
+                        { width: `${roadmap.percentualProgress}%` },
                       ]}
                     />
                   </View>
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.fontWeight.bold,
     color: COLORS.text.primary,
   },
-  nivelText: {
+  levelText: {
     fontSize: isSmallDevice ? TYPOGRAPHY.fontSize.sm : TYPOGRAPHY.fontSize.base,
     color: COLORS.brand.accent,
     marginTop: SPACING.xs,

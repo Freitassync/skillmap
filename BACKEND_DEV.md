@@ -29,20 +29,20 @@ O SkillMap 4.0 utiliza um **backend local baseado em SQLite** para desenvolvimen
 
 ## 📊 Estrutura do Banco de Dados
 
-### **Tabela: `usuarios`**
+### **Tabela: `users`**
 
 Armazena dados dos usuários cadastrados.
 
 ```sql
-CREATE TABLE usuarios (
+CREATE TABLE users (
   id TEXT PRIMARY KEY,                    -- UUID gerado: user-{timestamp}-{random}
-  nome TEXT NOT NULL,                     -- Nome do usuário
+  name TEXT NOT NULL,                     -- Nome do usuário
   email TEXT UNIQUE NOT NULL,             -- Email único (usado no login)
-  senha_hash TEXT NOT NULL,               -- Hash SHA-256 da senha
-  nivel_xp INTEGER DEFAULT 1,             -- Nível de XP atual (1-100)
-  xp_atual INTEGER DEFAULT 0,             -- XP acumulado no nível atual
-  data_criacao TEXT DEFAULT CURRENT_TIMESTAMP,
-  ultimo_onboarding TEXT                  -- Último onboarding visualizado
+  password_hash TEXT NOT NULL,               -- Hash SHA-256 da senha
+  xp_level INTEGER DEFAULT 1,             -- Nível de XP atual (1-100)
+  current_xp INTEGER DEFAULT 0,             -- XP acumulado no nível atual
+  creation_date TEXT DEFAULT CURRENT_TIMESTAMP,
+  last_onboarding TEXT                  -- Último onboarding visualizado
 );
 ```
 
@@ -58,12 +58,12 @@ Roadmaps de carreira criados pelos usuários.
 ```sql
 CREATE TABLE roadmaps (
   id TEXT PRIMARY KEY,
-  usuario_id TEXT NOT NULL,               -- FK para usuarios.id
-  titulo TEXT NOT NULL,
-  objetivo_carreira TEXT NOT NULL,
-  nivel_experiencia TEXT NOT NULL,        -- 'iniciante', 'intermediario', 'avancado'
-  data_criacao TEXT DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+  user_id TEXT NOT NULL,               -- FK para users.id
+  title TEXT NOT NULL,
+  career_goal TEXT NOT NULL,
+  experience TEXT NOT NULL,        -- 'beginner', 'intermediate', 'advanced'
+  creation_date TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 ```
 
@@ -76,10 +76,10 @@ Skills (hard e soft) disponíveis no sistema.
 ```sql
 CREATE TABLE skills (
   id TEXT PRIMARY KEY,
-  nome TEXT NOT NULL,
-  descricao TEXT NOT NULL,
-  tipo TEXT NOT NULL CHECK(tipo IN ('hard', 'soft')),
-  categoria TEXT                          -- Ex: 'tecnologia', 'gestao', 'comunicacao'
+  name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  type TEXT NOT NULL CHECK(type IN ('hard', 'soft')),
+  category TEXT                          -- Ex: 'tecnologia', 'gestao', 'comunicacao'
 );
 ```
 
@@ -94,9 +94,9 @@ CREATE TABLE roadmap_skills (
   id TEXT PRIMARY KEY,
   roadmap_id TEXT NOT NULL,
   skill_id TEXT NOT NULL,
-  ordem INTEGER NOT NULL,                 -- Ordem de aprendizado (0, 1, 2...)
-  concluida INTEGER DEFAULT 0,            -- 0 = pendente, 1 = concluída
-  data_conclusao TEXT,
+  order INTEGER NOT NULL,                 -- Ordem de aprendizado (0, 1, 2...)
+  is_concluded INTEGER DEFAULT 0,            -- 0 = pendente, 1 = concluída
+  conclusion_date TEXT,
   FOREIGN KEY (roadmap_id) REFERENCES roadmaps(id) ON DELETE CASCADE,
   FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE CASCADE
 );
@@ -111,11 +111,11 @@ Histórico de conversas com o chatbot de IA.
 ```sql
 CREATE TABLE chat_messages (
   id TEXT PRIMARY KEY,
-  usuario_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
   role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
   content TEXT NOT NULL,
   timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 ```
 
@@ -128,36 +128,36 @@ CREATE TABLE chat_messages (
 ```typescript
 // 1. Usuário preenche formulário
 const dados = {
-  nome: "João Silva",
+  name: "João Silva",
   email: "joao@example.com",
   senha: "Senha123"
 };
 
 // 2. AuthService sanitiza e valida dados
 const emailLimpo = sanitizeEmail(dados.email);
-const nomeLimpo = sanitizeNome(dados.nome);
+const nameLimpo = sanitizeNome(dados.name);
 
 // 3. Verifica se email já existe no SQLite
-const existe = await DatabaseService.getUsuarioByEmail(emailLimpo);
+const existe = await DatabaseService.getUserByEmail(emailLimpo);
 
 // 4. Cria hash da senha (SHA-256)
-const senhaHash = await hashPassword(dados.senha);
+const passwordHash = await hashPassword(dados.senha);
 
 // 5. Insere usuário no banco
-await DatabaseService.createUsuario({
+await DatabaseService.createUser({
   id: `user-${Date.now()}-${random}`,
-  nome: nomeLimpo,
+  name: nameLimpo,
   email: emailLimpo,
-  senha_hash: senhaHash,
-  nivel_xp: 1,
-  xp_atual: 0
+  password_hash: passwordHash,
+  xp_level: 1,
+  current_xp: 0
 });
 
 // 6. Gera token de sessão
-await SecureStore.setItemAsync('AUTH_TOKEN', usuario.id);
+await SecureStore.setItemAsync('AUTH_TOKEN', user.id);
 
 // 7. Armazena dados do usuário no cache
-await AsyncStorage.setItem('USER_DATA', JSON.stringify(usuario));
+await AsyncStorage.setItem('USER_DATA', JSON.stringify(user));
 ```
 
 ---
@@ -172,18 +172,18 @@ const credentials = {
 };
 
 // 2. Busca usuário no SQLite por email
-const usuario = await DatabaseService.getUsuarioByEmail(credentials.email);
+const user = await DatabaseService.getUserByEmail(credentials.email);
 
 // 3. Compara hash da senha
 const senhaCorreta = await comparePassword(
   credentials.senha, 
-  usuario.senha_hash
+  user.password_hash
 );
 
 // 4. Se correto, cria sessão
 if (senhaCorreta) {
-  await SecureStore.setItemAsync('AUTH_TOKEN', usuario.id);
-  await AsyncStorage.setItem('USER_DATA', JSON.stringify(usuario));
+  await SecureStore.setItemAsync('AUTH_TOKEN', user.id);
+  await AsyncStorage.setItem('USER_DATA', JSON.stringify(user));
 }
 ```
 
@@ -198,12 +198,12 @@ if (senhaCorreta) {
 const token = await SecureStore.getItemAsync('AUTH_TOKEN');
 
 // 2. Valida token no SQLite
-const usuario = await DatabaseService.getUsuarioById(token);
+const user = await DatabaseService.getUserById(token);
 
 // 3. Se válido, restaura sessão
-if (usuario) {
-  await AsyncStorage.setItem('USER_DATA', JSON.stringify(usuario));
-  return usuario;
+if (user) {
+  await AsyncStorage.setItem('USER_DATA', JSON.stringify(user));
+  return user;
 }
 
 // 4. Se inválido, limpa sessão
@@ -218,26 +218,26 @@ await SecureStore.deleteItemAsync('AUTH_TOKEN');
 
 ```typescript
 // Criar usuário
-await DatabaseService.createUsuario({
+await DatabaseService.createUser({
   id: 'user-123',
-  nome: 'João Silva',
+  name: 'João Silva',
   email: 'joao@example.com',
-  senha_hash: 'hash_sha256',
-  nivel_xp: 1,
-  xp_atual: 0
+  password_hash: 'hash_sha256',
+  xp_level: 1,
+  current_xp: 0
 });
 
 // Buscar por email
-const usuario = await DatabaseService.getUsuarioByEmail('joao@example.com');
+const user = await DatabaseService.getUserByEmail('joao@example.com');
 
 // Buscar por ID
-const usuario = await DatabaseService.getUsuarioById('user-123');
+const user = await DatabaseService.getUserById('user-123');
 
 // Atualizar XP
-await DatabaseService.updateUsuarioXP('user-123', 5, 150);
+await DatabaseService.updateUserXP('user-123', 5, 150);
 
 // Atualizar onboarding
-await DatabaseService.updateUsuarioOnboarding('user-123', 'login');
+await DatabaseService.updateUserOnboarding('user-123', 'login');
 ```
 
 ---
@@ -248,14 +248,14 @@ await DatabaseService.updateUsuarioOnboarding('user-123', 'login');
 // Criar roadmap
 await DatabaseService.createRoadmap({
   id: 'roadmap-123',
-  usuario_id: 'user-123',
-  titulo: 'Dev Full Stack',
-  objetivo_carreira: 'Desenvolvedor Full Stack',
-  nivel_experiencia: 'intermediario'
+  user_id: 'user-123',
+  title: 'Dev Full Stack',
+  career_goal: 'Desenvolvedor Full Stack',
+  experience: 'intermediate'
 });
 
 // Listar roadmaps do usuário
-const roadmaps = await DatabaseService.getRoadmapsByUsuarioId('user-123');
+const roadmaps = await DatabaseService.getRoadmapsByUserId('user-123');
 
 // Deletar roadmap (CASCADE para skills)
 await DatabaseService.deleteRoadmap('roadmap-123');
@@ -269,10 +269,10 @@ await DatabaseService.deleteRoadmap('roadmap-123');
 // Criar skill
 await DatabaseService.createSkill({
   id: 'skill-123',
-  nome: 'React Native',
-  descricao: 'Desenvolvimento mobile com React',
-  tipo: 'hard',
-  categoria: 'tecnologia'
+  name: 'React Native',
+  description: 'Desenvolvimento mobile com React',
+  type: 'hard',
+  category: 'tecnologia'
 });
 
 // Buscar skill
@@ -283,8 +283,8 @@ await DatabaseService.createRoadmapSkill({
   id: 'rs-123',
   roadmap_id: 'roadmap-123',
   skill_id: 'skill-123',
-  ordem: 0,
-  concluida: false
+  order: 0,
+  is_concluded: false
 });
 
 // Marcar skill como concluída
@@ -343,8 +343,8 @@ export async function comparePassword(
   senha: string, 
   hash: string
 ): Promise<boolean> {
-  const senhaHash = await hashPassword(senha);
-  return senhaHash === hash;
+  const passwordHash = await hashPassword(senha);
+  return passwordHash === hash;
 }
 ```
 
@@ -371,22 +371,22 @@ await DatabaseService.clearAllData();
 
 ```typescript
 // Criar usuário de teste
-await DatabaseService.createUsuario({
+await DatabaseService.createUser({
   id: 'test-user-1',
-  nome: 'Teste Usuario',
+  name: 'Teste User',
   email: 'teste@skillmap.com',
-  senha_hash: await hashPassword('Teste123'),
-  nivel_xp: 10,
-  xp_atual: 500
+  password_hash: await hashPassword('Teste123'),
+  xp_level: 10,
+  current_xp: 500
 });
 
 // Criar roadmap de teste
 await DatabaseService.createRoadmap({
   id: 'test-roadmap-1',
-  usuario_id: 'test-user-1',
-  titulo: 'Roadmap Teste',
-  objetivo_carreira: 'Desenvolvedor',
-  nivel_experiencia: 'iniciante'
+  user_id: 'test-user-1',
+  title: 'Roadmap Teste',
+  career_goal: 'Desenvolvedor',
+  experience: 'beginner'
 });
 ```
 
@@ -400,7 +400,7 @@ await DatabaseService.createRoadmap({
 import { useAuth } from '../hooks/useAuth';
 
 const MyScreen = () => {
-  const { usuario, login, cadastrar, logout, atualizarXP } = useAuth();
+  const { user, login, cadastrar, logout, atualizarXP } = useAuth();
 
   // Fazer login
   const handleLogin = async () => {
@@ -410,7 +410,7 @@ const MyScreen = () => {
     });
     
     if (result.success) {
-      console.log('Usuário logado:', result.usuario);
+      console.log('Usuário logado:', result.user);
     } else {
       console.error('Erro:', result.error);
     }
@@ -418,15 +418,15 @@ const MyScreen = () => {
 
   // Atualizar XP
   const handleGanharXP = async () => {
-    if (usuario) {
-      await atualizarXP(usuario.nivel_xp + 1, 0);
+    if (user) {
+      await atualizarXP(user.xp_level + 1, 0);
     }
   };
 
   return (
     <View>
-      {usuario ? (
-        <Text>Bem-vindo, {usuario.nome}!</Text>
+      {user ? (
+        <Text>Bem-vindo, {user.nome}!</Text>
       ) : (
         <Button title="Login" onPress={handleLogin} />
       )}

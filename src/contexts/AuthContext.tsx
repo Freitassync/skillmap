@@ -1,15 +1,15 @@
 import React, { createContext, useContext } from 'react';
 import { useAuth as useAuthHook } from '../hooks/useAuth';
-import type { IUsuario, LoginDTO, CadastroDTO } from '../types/models';
+import type { IUser, LoginDTO, RegisterDTO } from '../types/models';
 
 interface AuthContextType {
-  usuario: IUsuario | null;
+  user: IUser | null;
   isLoading: boolean;
   error: string | null;
   login: (credentials: LoginDTO) => Promise<boolean>;
-  cadastrar: (data: CadastroDTO) => Promise<boolean>;
+  cadastrar: (data: RegisterDTO) => Promise<boolean>;
   logout: () => Promise<void>;
-  atualizarXP: (novoNivelXP: number, novoXPAtual?: number) => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

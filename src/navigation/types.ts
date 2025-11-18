@@ -8,6 +8,10 @@ export type RootStackParamList = {
   GeradorRoadmap: undefined;
   RoadmapTracker: undefined;
   ChatBot: undefined;
+  SkillDetail: {
+    skillId: string;
+    roadmapId: string;
+  };
 };
 
 export type TabParamList = {

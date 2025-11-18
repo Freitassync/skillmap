@@ -1,5 +1,5 @@
 import { VALIDATION } from '../constants';
-import type { FormErrors, LoginDTO, CadastroDTO } from '../types/models';
+import type { FormErrors, LoginDTO, RegisterDTO } from '../types/models';
 
 // ===========================
 // Validadores de Campo
@@ -28,14 +28,14 @@ export const validateSenha = (senha: string): string | null => {
   return null;
 };
 
-export const validateNome = (nome: string): string | null => {
-  if (!nome.trim()) {
+export const validateNome = (name: string): string | null => {
+  if (!name.trim()) {
     return 'Nome é obrigatório';
   }
-  if (nome.length < VALIDATION.nome.minLength || nome.length > VALIDATION.nome.maxLength) {
-    return VALIDATION.nome.message;
+  if (name.length < VALIDATION.name.minLength || name.length > VALIDATION.name.maxLength) {
+    return VALIDATION.name.message;
   }
-  if (!VALIDATION.nome.regex.test(nome)) {
+  if (!VALIDATION.name.regex.test(name)) {
     return 'Nome contém caracteres inválidos';
   }
   return null;
@@ -67,11 +67,11 @@ export const validateLoginForm = (data: LoginDTO): FormErrors => {
   return errors;
 };
 
-export const validateCadastroForm = (data: CadastroDTO): FormErrors => {
+export const validateCadastroForm = (data: RegisterDTO): FormErrors => {
   const errors: FormErrors = {};
 
-  const nomeError = validateNome(data.nome);
-  if (nomeError) errors.nome = nomeError;
+  const nameError = validateNome(data.name);
+  if (nameError) errors.name = nameError;
 
   const emailError = validateEmail(data.email);
   if (emailError) errors.email = emailError;
@@ -90,11 +90,11 @@ export const validateCadastroForm = (data: CadastroDTO): FormErrors => {
 // ===========================
 
 export const sanitizeEmail = (email: string): string => {
-  return email.trim().toLowerCase();
+  return email.trim()?.toLowerCase();
 };
 
-export const sanitizeNome = (nome: string): string => {
-  return nome.trim().replace(/\s+/g, ' ');
+export const sanitizeNome = (name: string): string => {
+  return name.trim().replace(/\s+/g, ' ');
 };
 
 // ===========================

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -14,10 +15,23 @@ import type { TabParamList } from '../navigation/types';
 import { useAuthContext } from '../contexts/AuthContext';
 import ChatBotService, { type ChatMessage } from '../services/ChatBotService';
 import { COLORS, SPACING, TYPOGRAPHY, RADIUS } from '../constants';
+import Markdown from 'react-native-markdown-display';
 
 type Props = {
   navigation: BottomTabNavigationProp<TabParamList, 'ChatBot'>;
 };
+
+/**
+ * Sugestões de perguntas comuns
+ */
+const SUGGESTION_CHIPS = [
+  '📚 Como criar um roadmap?',
+  '🎯 Quais skills aprender primeiro?',
+  '💡 Dicas para iniciantes em programação',
+  '🚀 Como acelerar meu aprendizado?',
+  '🏆 Como ganhar mais XP?',
+  '📊 Qual a diferença entre hard e soft skills?',
+];
 
 /**
  * ChatBot Screen - NOVO LAYOUT SEM OVERLAY
@@ -27,40 +41,42 @@ type Props = {
  *   └─ View (flex: 1, flexDirection: 'column')
  *       ├─ Header (fixo)
  *       ├─ FlatList (flex: 1 - CRESCE DINAMICAMENTE)
+ *       ├─ Suggestions (mostradas quando chat vazio)
  *       ├─ Loading (opcional)
  *       └─ Input (FIXO no bottom com insets)
  *
  * GARANTIA: Input NUNCA fica abaixo do tab bar
  */
 const ChatBotScreen: React.FC<Props> = ({ navigation }) => {
-  const { usuario } = useAuthContext();
+  const { user } = useAuthContext();
   const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [showSuggestions, setShowSuggestions] = useState(true);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    console.log('🤖 ChatBotScreen mounted', usuario?.nome || 'sem usuário');
+    console.log('🤖 ChatBotScreen mounted', user?.name || 'sem usuário');
     loadHistory();
-  }, [usuario?.id]);
+  }, [user?.id]);
 
   const loadHistory = async () => {
-    if (!usuario) {
+    if (!user) {
       setIsLoadingHistory(false);
       return;
     }
 
     try {
-      const history = await ChatBotService.loadChatHistory(usuario.id);
+      const history = await ChatBotService.loadChatHistory(user.id);
       if (history.length === 0) {
         setMessages([
           {
             id: 'welcome',
             role: 'assistant',
-            content: `Olá ${usuario.nome}! 👋 Como posso ajudar?`,
+            content: `Olá ${user.name}! 👋 Como posso ajudar?`,
             timestamp: new Date(),
           },
         ]);
@@ -76,10 +92,14 @@ const ChatBotScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  const handleSend = useCallback(async () => {
-    if (!inputText.trim() || !usuario || isLoading) return;
+  const handleSend = useCallback(async (messageText?: string) => {
+    const textToSend = messageText || inputText.trim();
+    if (!textToSend || !user || isLoading) return;
 
-    const userMsg = inputText.trim();
+    // Oculta sugestões após primeiro envio
+    setShowSuggestions(false);
+
+    const userMsg = textToSend;
     setMessages((p) => [
       ...p,
       {
@@ -93,7 +113,7 @@ const ChatBotScreen: React.FC<Props> = ({ navigation }) => {
     setIsLoading(true);
 
     try {
-      const response = await ChatBotService.sendMessage(userMsg, usuario.id);
+      const response = await ChatBotService.sendMessage(user.id, userMsg);
       if (response) {
         setMessages((p) => [...p, response]);
         setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50);
@@ -112,12 +132,21 @@ const ChatBotScreen: React.FC<Props> = ({ navigation }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [inputText, usuario, isLoading]);
+  }, [inputText, user, isLoading]);
+
+  /**
+   * Envia sugestão como mensagem
+   */
+  const handleSuggestionPress = useCallback((suggestion: string) => {
+    // Remove emoji do início para texto limpo
+    const cleanText = suggestion.replace(/^[\u{1F300}-\u{1F9FF}]\s*/u, '');
+    handleSend(cleanText);
+  }, [handleSend]);
 
   const handleClear = async () => {
-    if (!usuario) return;
+    if (!user) return;
     try {
-      await ChatBotService.clearChatHistory(usuario.id);
+      await ChatBotService.clearChatHistory(user.id);
       await loadHistory();
     } catch (error) {
       console.error('❌ Erro ao limpar:', error);
@@ -163,9 +192,64 @@ const ChatBotScreen: React.FC<Props> = ({ navigation }) => {
           return (
             <View style={[styles.msgRow, isUser && styles.msgRowUser]}>
               <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleBot]}>
-                <Text style={[styles.bubbleText, isUser && styles.bubbleTextUser]}>
-                  {item.content}
-                </Text>
+                {isUser ? (
+                  <Text style={[styles.bubbleText, styles.bubbleTextUser]}>
+                    {item.content}
+                  </Text>
+                ) : (
+                  <Markdown
+                    style={{
+                      body: {
+                        color: COLORS.text.primary,
+                        fontSize: TYPOGRAPHY.fontSize.base,
+                        lineHeight: 20,
+                      },
+                      paragraph: {
+                        marginTop: 0,
+                        marginBottom: 4,
+                      },
+                      code_inline: {
+                        backgroundColor: COLORS.bg.tertiary,
+                        color: COLORS.brand.primary,
+                        paddingHorizontal: 4,
+                        paddingVertical: 2,
+                        borderRadius: 4,
+                        fontSize: TYPOGRAPHY.fontSize.sm,
+                      },
+                      code_block: {
+                        backgroundColor: COLORS.bg.tertiary,
+                        padding: SPACING.sm,
+                        borderRadius: RADIUS.sm,
+                        fontSize: TYPOGRAPHY.fontSize.sm,
+                      },
+                      fence: {
+                        backgroundColor: COLORS.bg.tertiary,
+                        padding: SPACING.sm,
+                        borderRadius: RADIUS.sm,
+                      },
+                      bullet_list: {
+                        marginBottom: 4,
+                      },
+                      ordered_list: {
+                        marginBottom: 4,
+                      },
+                      list_item: {
+                        marginBottom: 2,
+                      },
+                      strong: {
+                        fontWeight: TYPOGRAPHY.fontWeight.bold,
+                      },
+                      em: {
+                        fontStyle: 'italic',
+                      },
+                      link: {
+                        color: COLORS.brand.primary,
+                      },
+                    }}
+                  >
+                    {item.content}
+                  </Markdown>
+                )}
                 <Text style={[styles.time, isUser && styles.timeUser]}>
                   {new Date(item.timestamp).toLocaleTimeString('pt-BR', {
                     hour: '2-digit',
@@ -189,6 +273,29 @@ const ChatBotScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       )}
 
+      {/* SUGGESTIONS - Mostradas quando chat está vazio ou com poucas mensagens */}
+      {showSuggestions && messages.length <= 1 && !isLoading && (
+        <View style={styles.suggestionsContainer}>
+          <Text style={styles.suggestionsTitle}>💭 Perguntas sugeridas</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.suggestionsList}
+          >
+            {SUGGESTION_CHIPS.map((suggestion, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.suggestionChip}
+                onPress={() => handleSuggestionPress(suggestion)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.suggestionChipText}>{suggestion}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       {/* INPUT AREA - FIXO NO BOTTOM */}
       <View style={styles.inputArea}>
         <TextInput
@@ -207,7 +314,7 @@ const ChatBotScreen: React.FC<Props> = ({ navigation }) => {
             styles.btnSend,
             (!inputText.trim() || isLoading) && styles.btnSendDisabled,
           ]}
-          onPress={handleSend}
+          onPress={() => handleSend()}
           disabled={!inputText.trim() || isLoading}
         >
           <Text style={styles.btnSendText}>➤</Text>
@@ -313,6 +420,38 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
     fontStyle: 'italic',
+  },
+
+  // SUGGESTIONS
+  suggestionsContainer: {
+    paddingVertical: SPACING.base,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.bg.secondary,
+    backgroundColor: COLORS.bg.primary,
+  },
+  suggestionsTitle: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.secondary,
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.sm,
+  },
+  suggestionsList: {
+    paddingHorizontal: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  suggestionChip: {
+    backgroundColor: COLORS.bg.secondary,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.base,
+    paddingVertical: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.brand.primary + '33',
+  },
+  suggestionChipText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.brand.primary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
 
   // INPUT AREA - FIXO NO BOTTOM

@@ -8,13 +8,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuthContext } from '../contexts/AuthContext';
 import LoginScreen from '../screens/LoginScreen';
-import CadastroScreen from '../screens/CadastroScreen';
+import CadastroScreen from '../screens/RegisterScreen';
 import OnboardingCadastroScreen from '../screens/OnboardingCadastroScreen';
 import OnboardingLoginScreen from '../screens/OnboardingLoginScreen';
 import HomeScreen from '../screens/HomeScreen';
-import GeradorRoadmapScreen from '../screens/GeradorRoadmapScreen';
+import GeradorRoadmapScreen from '../screens/RoadmapGeneratorScreen';
 import RoadmapTrackerScreen from '../screens/RoadmapTrackerScreen';
 import ChatBotScreen from '../screens/ChatBotScreen';
+import SkillDetailScreen from '../screens/SkillDetailScreen';
 import { RootStackParamList, TabParamList } from './types';
 import { COLORS, TYPOGRAPHY, STORAGE_KEYS } from '../constants';
 
@@ -99,16 +100,16 @@ const MainTabs: React.FC = () => {
 };
 
 const AppNavigator: React.FC = () => {
-  const { usuario, isLoading } = useAuthContext();
+  const { user, isLoading } = useAuthContext();
   const [initializing, setInitializing] = useState(true);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
 
   useEffect(() => {
     checkOnboardingStatus();
-  }, [usuario, isLoading]);
+  }, [user, isLoading]);
 
   const checkOnboardingStatus = async () => {
-    console.log('🔄 Checking onboarding status - isLoading:', isLoading, 'usuario:', usuario?.id);
+    console.log('🔄 Checking onboarding status - isLoading:', isLoading, 'user:', user?.id);
     
     // Aguarda verificação de sessão inicial
     if (isLoading) {
@@ -119,7 +120,7 @@ const AppNavigator: React.FC = () => {
     console.log('✅ Auth loaded, checking onboarding...');
 
     // Se não há usuário (logout), reseta o onboarding
-    if (!usuario) {
+    if (!user) {
       console.log('🔄 No user, resetting onboarding status');
       setHasSeenOnboarding(false);
       setInitializing(false);
@@ -128,9 +129,9 @@ const AppNavigator: React.FC = () => {
 
     try {
       // Verifica se o usuário já viu o onboarding de login
-      const onboardingKey = `${STORAGE_KEYS.ONBOARDING}_login_${usuario.id}`;
+      const onboardingKey = `${STORAGE_KEYS.ONBOARDING}_login_${user.id}`;
       const seen = await AsyncStorage.getItem(onboardingKey);
-      console.log('🎯 Onboarding status:', { userId: usuario.id, seen: !!seen });
+      console.log('🎯 Onboarding status:', { userId: user.id, seen: !!seen });
       setHasSeenOnboarding(!!seen);
     } catch (error) {
       console.error('Error checking onboarding status:', error);
@@ -151,10 +152,10 @@ const AppNavigator: React.FC = () => {
   }
 
   console.log('🎬 AppNavigator - Rendering with:', { 
-    usuarioId: usuario?.id, 
-    usuarioNome: usuario?.nome,
+    userId: user?.id, 
+    userNome: user?.name,
     hasSeenOnboarding,
-    isAuthenticated: !!usuario 
+    isAuthenticated: !!user 
   });
 
   return (
@@ -165,20 +166,24 @@ const AppNavigator: React.FC = () => {
         contentStyle: { backgroundColor: COLORS.bg.primary },
       }}
     >
-      {usuario ? (
+      {user ? (
         // Telas autenticadas
         <>
           {!hasSeenOnboarding && (
-            <Stack.Screen 
-              name="OnboardingLogin" 
+            <Stack.Screen
+              name="OnboardingLogin"
               component={OnboardingLoginScreen}
               options={{ gestureEnabled: false }}
             />
           )}
-          <Stack.Screen 
-            name="MainTabs" 
+          <Stack.Screen
+            name="MainTabs"
             component={MainTabs}
             options={{ gestureEnabled: false }}
+          />
+          <Stack.Screen
+            name="SkillDetail"
+            component={SkillDetailScreen}
           />
         </>
       ) : (

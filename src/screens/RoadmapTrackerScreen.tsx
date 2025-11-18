@@ -3,11 +3,9 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
-  Alert,
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,7 +16,8 @@ import { RootStackParamList } from '../navigation/types';
 import { useAuth } from '../hooks/useAuth';
 import { useRoadmap, useRoadmapSkills } from '../hooks/useRoadmap';
 import { Card } from '../components';
-import { COLORS, TYPOGRAPHY, SPACING, RADIUS, MESSAGES, GAMIFICATION } from '../constants';
+import { COLORS, TYPOGRAPHY, SPACING, RADIUS, MESSAGES } from '../constants';
+import { Alert } from '../utils/alert';
 import type { IRoadmap, IRoadmapSkill } from '../types/models';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -31,20 +30,22 @@ export type RoadmapTrackerScreenNavigationProp = NativeStackNavigationProp<
 
 const RoadmapTrackerScreen: React.FC = () => {
   const navigation = useNavigation<RoadmapTrackerScreenNavigationProp>();
-  const { usuario, atualizarXP } = useAuth();
+  const { user } = useAuth();
   const { roadmaps, isLoading, carregarRoadmaps, deletarRoadmap } = useRoadmap();
-  const { skills, carregarSkills, marcarConcluida } = useRoadmapSkills();
+  const { skills, carregarSkills } = useRoadmapSkills();
 
   const [roadmapSelecionado, setRoadmapSelecionado] = useState<IRoadmap | null>(null);
 
-  // Recarrega roadmaps quando a tela ganha foco (ex: após criar novo roadmap)
   useFocusEffect(
     useCallback(() => {
       console.log('🔄 RoadmapTrackerScreen ganhou foco, recarregando...');
-      if (usuario) {
-        carregarRoadmaps(usuario.id);
+      if (user) {
+        carregarRoadmaps(user.id);
+        if (roadmapSelecionado) {
+          carregarSkills(roadmapSelecionado.id);
+        }
       }
-    }, [usuario, carregarRoadmaps])
+    }, [user, roadmapSelecionado, carregarRoadmaps, carregarSkills])
   );
 
   useEffect(() => {
@@ -53,22 +54,7 @@ const RoadmapTrackerScreen: React.FC = () => {
     }
   }, [roadmapSelecionado, carregarSkills]);
 
-  const handleMarcarConcluida = async (skillId: string) => {
-    if (!roadmapSelecionado || !usuario) return;
-
-    const xpGanho = await marcarConcluida(roadmapSelecionado.id, skillId);
-
-    if (xpGanho > 0) {
-      const novoXP = usuario.nivel_xp + xpGanho;
-      await atualizarXP(novoXP);
-      Alert.alert('Parabéns!', `Você ganhou ${xpGanho} XP!`);
-
-      // Recarrega roadmaps para atualizar progresso
-      carregarRoadmaps(usuario.id);
-    }
-  };
-
-  const handleDeletar = (roadmapId: string) => {
+  const handleDelete = (roadmapId: string) => {
     Alert.alert(
       'Confirmar exclusão',
       'Tem certeza que deseja deletar este roadmap? Esta ação não pode ser desfeita.',
@@ -99,21 +85,21 @@ const RoadmapTrackerScreen: React.FC = () => {
         <Card style={isSelected ? styles.roadmapItemSelected : styles.roadmapItem}>
           <View style={styles.roadmapItemHeader}>
             <View style={styles.roadmapItemInfo}>
-              <Text style={styles.roadmapItemTitle}>{item.nome_carreira}</Text>
-              <Text style={styles.roadmapItemProgress}>{item.progresso_percentual}% completo</Text>
+              <Text style={styles.roadmapItemTitle}>{item.title}</Text>
+              <Text style={styles.roadmapItemProgress}>{item.percentualProgress}% completo</Text>
             </View>
 
             <TouchableOpacity
-              onPress={() => handleDeletar(item.id)}
+              onPress={() => handleDelete(item.id)}
               style={styles.deleteButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Text style={styles.deleteButtonText}>×</Text>
+              <Text style={styles.deleteButtonText}>x</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.progressBarContainer}>
-            <View style={[styles.progressBar, { width: `${item.progresso_percentual}%` }]} />
+            <View style={[styles.progressBar, { width: `${item.percentualProgress}%` }]} />
           </View>
         </Card>
       </TouchableOpacity>
@@ -121,46 +107,58 @@ const RoadmapTrackerScreen: React.FC = () => {
   };
 
   const renderSkillItem = ({ item }: { item: IRoadmapSkill }) => {
-    const concluida = item.status === 'concluido';
+    const is_concluded = item.status === 'concluido';
+    const completedMilestones = item.milestones?.filter((m) => m.completed).length || 0;
+    const totalMilestones = item.milestones?.length || 0;
 
     return (
       <TouchableOpacity
-        onPress={() => !concluida && handleMarcarConcluida(item.id)}
-        disabled={concluida}
+        onPress={() =>
+          navigation.navigate('SkillDetail', {
+            skillId: item.id,
+            roadmapId: roadmapSelecionado!.id,
+          })
+        }
+        activeOpacity={0.7}
       >
-        <Card style={concluida ? styles.skillItemConcluida : styles.skillItem}>
+        <Card style={is_concluded ? styles.skillItemConcluida : styles.skillItem}>
           <View style={styles.skillHeader}>
             <View style={styles.skillInfo}>
-              <Text style={[styles.skillTitle, concluida && styles.skillTitleConcluida]}>
-                {item.skill.nome}
+              <Text style={[styles.skillTitle, is_concluded && styles.skillTitleConcluida]}>
+                {item.skill.name}
               </Text>
-              <Text
-                style={[
-                  styles.skillTypeText,
-                  item.skill.tipo === 'hard' ? styles.skillTypeHard : styles.skillTypeSoft,
-                ]}
-              >
-                {item.skill.tipo.toUpperCase()}
-              </Text>
+              <View style={styles.skillBadges}>
+                <Text
+                  style={[
+                    styles.skillTypeText,
+                    item.skill.type === 'hard' ? styles.skillTypeHard : styles.skillTypeSoft,
+                  ]}
+                >
+                  {item.skill.type.toUpperCase()} SKILL
+                </Text>
+              </View>
             </View>
 
-            <View
-              style={[
-                styles.checkbox,
-                concluida && styles.checkboxChecked,
-              ]}
-            >
-              {concluida && <Text style={styles.checkmark}>✓</Text>}
+            <View style={styles.expandIndicator}>
+              <Text style={styles.expandIndicatorText}>→</Text>
             </View>
           </View>
 
-          <Text style={[styles.skillDescription, concluida && styles.skillDescriptionConcluida]}>
-            {item.skill.descricao}
+          <Text style={[styles.skillDescription, is_concluded && styles.skillDescriptionConcluida]}>
+            {item.skill.description}
           </Text>
 
-          {concluida && item.data_conclusao && (
-            <Text style={styles.dataConclusao}>
-              Concluído em {new Date(item.data_conclusao).toLocaleDateString('pt-BR')}
+          {totalMilestones > 0 && (
+            <View style={styles.progressInfo}>
+              <Text style={styles.progressInfoText}>
+                📍 {completedMilestones}/{totalMilestones} marcos concluídos
+              </Text>
+            </View>
+          )}
+
+          {is_concluded && item.conclusion_date && (
+            <Text style={styles.conclusionDate}>
+              Concluído em {new Date(item.conclusion_date).toLocaleDateString('pt-BR')}
             </Text>
           )}
         </Card>
@@ -181,7 +179,6 @@ const RoadmapTrackerScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.container}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Text style={styles.backButtonText}>← Voltar</Text>
@@ -201,7 +198,6 @@ const RoadmapTrackerScreen: React.FC = () => {
           </View>
         ) : (
           <View style={styles.content}>
-            {/* Lista de Roadmaps */}
             <View style={styles.roadmapList}>
               <Text style={styles.sectionTitle}>Selecione um roadmap</Text>
               <FlatList
@@ -214,13 +210,16 @@ const RoadmapTrackerScreen: React.FC = () => {
               />
             </View>
 
-            {/* Skills do Roadmap Selecionado */}
             {roadmapSelecionado && (
               <View style={styles.skillsSection}>
-                <Text style={styles.sectionTitle}>Skills para dominar</Text>
-                <Text style={styles.sectionSubtitle}>
-                  Toque em uma skill para marcá-la como concluída e ganhar XP
-                </Text>
+                <View style={styles.skillsHeader}>
+                  <View style={styles.skillsTitleContainer}>
+                    <Text style={styles.sectionTitle}>Skills para dominar</Text>
+                    <Text style={styles.sectionSubtitle}>
+                      Toque para ver detalhes e recursos de aprendizado
+                    </Text>
+                  </View>
+                </View>
 
                 <FlatList
                   data={skills}
@@ -282,7 +281,7 @@ const styles = StyleSheet.create({
   },
   roadmapListContent: {
     paddingHorizontal: SPACING.xl,
-    paddingBottom: 100, // Espaço para o tab bar não sobrepor o conteúdo
+    paddingBottom: 25,
     gap: SPACING.md,
   },
   sectionTitle: {
@@ -335,8 +334,9 @@ const styles = StyleSheet.create({
   },
   deleteButtonText: {
     color: COLORS.text.primary,
-    fontSize: isSmallDevice ? 16 : 18,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.fontWeight.regular,
+    paddingBottom: SPACING.sm,
   },
   progressBarContainer: {
     height: 6,
@@ -352,6 +352,17 @@ const styles = StyleSheet.create({
   skillsSection: {
     flex: 1,
     paddingTop: SPACING.base,
+  },
+  skillsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: SPACING.base,
+    paddingHorizontal: isSmallDevice ? SPACING.lg : SPACING.xl,
+  },
+  skillsTitleContainer: {
+    flex: 1,
+    marginRight: SPACING.md,
   },
   skillsList: {
     paddingHorizontal: isSmallDevice ? SPACING.lg : SPACING.xl,
@@ -373,6 +384,11 @@ const styles = StyleSheet.create({
   },
   skillInfo: {
     flex: 1,
+  },
+  skillBadges: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+    flexWrap: 'wrap',
   },
   skillTitle: {
     fontSize: isSmallDevice ? TYPOGRAPHY.fontSize.sm : TYPOGRAPHY.fontSize.md,
@@ -409,27 +425,18 @@ const styles = StyleSheet.create({
   skillDescriptionConcluida: {
     color: COLORS.text.muted,
   },
-  dataConclusao: {
+  progressInfo: {
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.xs,
+  },
+  progressInfoText: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.brand.primary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+  },
+  conclusionDate: {
     fontSize: TYPOGRAPHY.fontSize.xs,
     color: COLORS.status.success,
-  },
-  checkbox: {
-    width: isSmallDevice ? 20 : 24,
-    height: isSmallDevice ? 20 : 24,
-    borderRadius: RADIUS.sm,
-    borderWidth: 2,
-    borderColor: COLORS.text.muted,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: COLORS.status.success,
-    borderColor: COLORS.status.success,
-  },
-  checkmark: {
-    color: COLORS.text.primary,
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
   emptyState: {
     flex: 1,
@@ -459,6 +466,17 @@ const styles = StyleSheet.create({
     color: COLORS.text.tertiary,
     textAlign: 'center',
     marginTop: isSmallDevice ? SPACING.lg : SPACING.xl,
+  },
+  expandIndicator: {
+    width: isSmallDevice ? 20 : 24,
+    height: isSmallDevice ? 20 : 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  expandIndicatorText: {
+    fontSize: isSmallDevice ? TYPOGRAPHY.fontSize.sm : TYPOGRAPHY.fontSize.base,
+    color: COLORS.brand.primary,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
 });
 

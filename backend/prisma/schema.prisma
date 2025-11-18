@@ -1,0 +1,141 @@
+// Prisma Schema for SkillMap
+// Database: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== MODELS ====================
+
+model User {
+  id                 String         @id @default(uuid()) @db.Uuid
+  name               String         @db.VarChar(255)
+  email              String         @unique @db.VarChar(255)
+  passwordHash       String         @map("password_hash") @db.VarChar(255)
+  xpLevel            Int            @default(1) @map("xp_level")
+  currentXp          Int            @default(0) @map("current_xp")
+  creationDate       DateTime       @default(now()) @map("creation_date") @db.Timestamp()
+  lastOnboarding     String?        @map("last_onboarding") @db.VarChar(50)
+
+  // Relations
+  roadmaps           Roadmap[]
+  chatMessages       ChatMessage[]
+  activityLogs       ActivityLog[]
+
+  @@map("users")
+}
+
+model Roadmap {
+  id                    String          @id @default(uuid()) @db.Uuid
+  userId                String          @map("user_id") @db.Uuid
+  title                 String          @db.VarChar(255)
+  careerGoal            String          @map("career_goal") @db.Text
+  experience            String          @map("experience") @db.VarChar(50)
+  percentualProgress    Decimal         @default(0) @map("percentual_progress") @db.Decimal(5, 2)
+  creationDate          DateTime        @default(now()) @map("creation_date") @db.Timestamp()
+
+  // Relations
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roadmapSkills        RoadmapSkill[]
+
+  @@index([userId], name: "idx_roadmaps_user")
+  @@map("roadmaps")
+}
+
+model Skill {
+  id            String            @id @default(uuid()) @db.Uuid
+  name          String            @db.VarChar(255)
+  description   String            @db.Text
+  type          SkillType
+  category      String?           @db.VarChar(100)
+
+  // Relations
+  roadmapSkills   RoadmapSkill[]
+
+  @@map("skills")
+}
+
+model RoadmapSkill {
+  id                  String     @id @default(uuid()) @db.Uuid
+  roadmapId           String     @map("roadmap_id") @db.Uuid
+  skillId             String     @map("skill_id") @db.Uuid
+  order               Int
+  isConcluded         Boolean    @default(false) @map("is_concluded")
+  conclusionDate      DateTime?  @map("conclusion_date") @db.Timestamp()
+  milestones          Json?      @db.JsonB
+  learningObjectives  String?    @db.Text @map("learning_objectives")
+  prerequisites       Json?      @db.JsonB
+  estimatedHours      Int?       @map("estimated_hours")
+
+  // Relations
+  roadmap         Roadmap          @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  skill           Skill            @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  resources       SkillResource[]
+
+  @@index([roadmapId], name: "idx_roadmap_skills_roadmap")
+  @@index([skillId], name: "idx_roadmap_skills_skill")
+  @@map("roadmap_skills")
+}
+
+model ChatMessage {
+  id          String      @id @default(uuid()) @db.Uuid
+  userId      String      @map("user_id") @db.Uuid
+  role        ChatRole
+  content     String      @db.Text
+  timestamp   DateTime    @default(now()) @db.Timestamp()
+
+  // Relations
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], name: "idx_chat_messages_user")
+  @@map("chat_messages")
+}
+
+model SkillResource {
+  id              String          @id @default(uuid()) @db.Uuid
+  roadmapSkillId  String          @map("roadmap_skill_id") @db.Uuid
+  type            String          @db.VarChar(50)
+  title           String          @db.VarChar(500)
+  url             String          @db.Text
+  platform        String?         @db.VarChar(100)
+  isFree          Boolean         @default(true) @map("is_free")
+  dateAdded       DateTime        @default(now()) @map("date_added") @db.Timestamp()
+
+  // Relations
+  roadmapSkill    RoadmapSkill    @relation(fields: [roadmapSkillId], references: [id], onDelete: Cascade)
+
+  @@index([roadmapSkillId], name: "idx_skill_resources_roadmap_skill")
+  @@map("skill_resources")
+}
+
+model ActivityLog {
+  id          String      @id @default(uuid()) @db.Uuid
+  userId      String      @map("user_id") @db.Uuid
+  action      String      @db.VarChar(100)
+  timestamp   DateTime    @default(now()) @db.Timestamp()
+  metadata    Json?       @db.JsonB
+
+  // Relations
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], name: "idx_activity_log_user")
+  @@map("activity_log")
+}
+
+// ==================== ENUMS ====================
+
+enum SkillType {
+  hard
+  soft
+}
+
+enum ChatRole {
+  user
+  assistant
+  system
+}
