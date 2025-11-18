@@ -21,16 +21,13 @@ type Props = {
   navigation: BottomTabNavigationProp<TabParamList, 'ChatBot'>;
 };
 
-/**
- * Sugestões de perguntas comuns
- */
 const SUGGESTION_CHIPS = [
-  '📚 Como criar um roadmap?',
-  '🎯 Quais skills aprender primeiro?',
-  '💡 Dicas para iniciantes em programação',
-  '🚀 Como acelerar meu aprendizado?',
-  '🏆 Como ganhar mais XP?',
-  '📊 Qual a diferença entre hard e soft skills?',
+  'Como criar um roadmap?',
+  'Quais skills aprender primeiro?',
+  'Dicas para iniciantes em programação',
+  'Como acelerar meu aprendizado?',
+  'Como ganhar mais XP?',
+  'Qual a diferença entre hard e soft skills?',
 ];
 
 /**
@@ -59,7 +56,6 @@ const ChatBotScreen: React.FC<Props> = ({ navigation }) => {
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    console.log('🤖 ChatBotScreen mounted', user?.name || 'sem usuário');
     loadHistory();
   }, [user?.id]);
 
@@ -76,7 +72,7 @@ const ChatBotScreen: React.FC<Props> = ({ navigation }) => {
           {
             id: 'welcome',
             role: 'assistant',
-            content: `Olá ${user.name}! 👋 Como posso ajudar?`,
+            content: `Olá ${user.name}! Como posso ajudar?`,
             timestamp: new Date(),
           },
         ]);
@@ -84,7 +80,7 @@ const ChatBotScreen: React.FC<Props> = ({ navigation }) => {
         setMessages(history);
       }
     } catch (error) {
-      console.error('❌ Erro ao carregar histórico:', error);
+      console.error('Erro ao carregar histórico:', error);
     } finally {
       setIsLoadingHistory(false);
       // Auto scroll
@@ -119,7 +115,7 @@ const ChatBotScreen: React.FC<Props> = ({ navigation }) => {
         setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50);
       }
     } catch (error) {
-      console.error('❌ Erro:', error);
+      console.error('Erro:', error);
       setMessages((p) => [
         ...p,
         {
@@ -149,7 +145,7 @@ const ChatBotScreen: React.FC<Props> = ({ navigation }) => {
       await ChatBotService.clearChatHistory(user.id);
       await loadHistory();
     } catch (error) {
-      console.error('❌ Erro ao limpar:', error);
+      console.error('Erro ao limpar:', error);
     }
   };
 
@@ -171,10 +167,9 @@ const ChatBotScreen: React.FC<Props> = ({ navigation }) => {
       ]} 
       edges={['top']}
     >
-      {/* TOP HEADER - FIXO */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>💬 Assistente IA</Text>
+          <Text style={styles.title}>Assistente IA</Text>
           <Text style={styles.subtitle}>24/7 Online</Text>
         </View>
         <TouchableOpacity onPress={handleClear} style={styles.btnClear}>
@@ -182,7 +177,6 @@ const ChatBotScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* MESSAGES - FLEX GROW (preenche o espaço) */}
       <FlatList
         ref={flatListRef}
         data={messages}
@@ -265,7 +259,6 @@ const ChatBotScreen: React.FC<Props> = ({ navigation }) => {
         keyboardShouldPersistTaps="handled"
       />
 
-      {/* LOADING - se estiver enviando */}
       {isLoading && (
         <View style={styles.loading}>
           <ActivityIndicator size="small" color={COLORS.brand.primary} />
@@ -273,10 +266,9 @@ const ChatBotScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       )}
 
-      {/* SUGGESTIONS - Mostradas quando chat está vazio ou com poucas mensagens */}
       {showSuggestions && messages.length <= 1 && !isLoading && (
         <View style={styles.suggestionsContainer}>
-          <Text style={styles.suggestionsTitle}>💭 Perguntas sugeridas</Text>
+          <Text style={styles.suggestionsTitle}>Perguntas sugeridas</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -296,7 +288,6 @@ const ChatBotScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       )}
 
-      {/* INPUT AREA - FIXO NO BOTTOM */}
       <View style={styles.inputArea}>
         <TextInput
           style={styles.input}

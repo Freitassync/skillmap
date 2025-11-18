@@ -27,7 +27,7 @@ export type CadastroScreenNavigationProp = NativeStackNavigationProp<RootStackPa
 
 const CadastroScreen: React.FC = () => {
   const navigation = useNavigation<CadastroScreenNavigationProp>();
-  const { cadastrar, isLoading } = useAuth();
+  const { register, isLoading } = useAuth();
 
   const [name, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -36,7 +36,6 @@ const CadastroScreen: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({});
 
   const handleCadastro = async () => {
-    // Valida formulário
     const formErrors = validateCadastroForm({
       name,
       email,
@@ -51,12 +50,10 @@ const CadastroScreen: React.FC = () => {
 
     setErrors({});
 
-    // Sanitiza dados
     const nameLimpo = sanitizeNome(name);
     const emailLimpo = sanitizeEmail(email);
 
-    // Tenta cadastrar
-    const sucesso = await cadastrar({
+    const sucesso = await register({
       name: nameLimpo,
       email: emailLimpo,
       senha,
@@ -65,7 +62,6 @@ const CadastroScreen: React.FC = () => {
 
     if (sucesso) {
       Alert.alert('Sucesso!', MESSAGES.auth.cadastroSuccess);
-      // Navegação automática após cadastro (usuário logado)
     } else {
       Alert.alert('Erro', MESSAGES.auth.cadastroError);
     }

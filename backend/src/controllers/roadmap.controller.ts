@@ -3,127 +3,16 @@ import OpenAI from 'openai';
 import prisma from '../lib/prisma';
 import logger from '../lib/logger';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { JsonParserService } from '../services/JsonParserService';
 import type { CreateRoadmapDTO, ApiResponse} from '../types';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const openai = OPENAI_API_KEY ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
-
-/**
- * Preprocesses text to remove common web search artifacts
- */
-function removeWebSearchArtifacts(text: string): string {
-  let cleaned = text;
-
-  cleaned = cleaned.replace(/\[\d+\]/g, '');
-  cleaned = cleaned.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
-
-  return cleaned;
-}
-
-/**
- * Strip markdown code blocks from AI responses to get pure JSON.
- * It also handles cases where the AI response includes text before or after the JSON block.
- */
-function stripMarkdownJson(text: string): string {
-  let cleaned = removeWebSearchArtifacts(text);
-
-  const markdownMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-  if (markdownMatch && markdownMatch[1]) {
-    return markdownMatch[1].trim();
-  }
-
-  const jsonStart = cleaned.indexOf('{');
-  const jsonEnd = cleaned.lastIndexOf('}');
-  if (jsonStart !== -1 && jsonEnd > jsonStart) {
-    return cleaned.substring(jsonStart, jsonEnd + 1).trim();
-  }
-
-  return cleaned.trim();
-}
-
-/**
- * Attempts to parse JSON with a fallback to OpenAI repair if parsing fails.
- * This prevents losing web search results and API calls when JSON is malformed.
- */
-async function parseJsonWithFallback(
-  jsonString: string,
-  context: string = 'JSON data'
-): Promise<any> {
-  try {
-    return JSON.parse(jsonString);
-  } catch (parseError: any) {
-    const errorPosition = parseError.message.match(/position (\d+)/)?.[1] || 'unknown';
-    logger.warn(`Initial JSON parse failed for ${context}: ${parseError.message}`);
-    logger.debug(`Malformed JSON around position ${errorPosition}: ${jsonString.substring(Math.max(0, Number(errorPosition) - 50), Math.min(jsonString.length, Number(errorPosition) + 50))}`);
-    logger.debug(`Full malformed JSON (first 500 chars): ${jsonString.substring(0, 500)}`);
-
-    if (!openai) {
-      throw new Error(`JSON parse failed and OpenAI not available for repair: ${parseError.message}`);
-    }
-
-    try {
-      logger.info(`Attempting to repair JSON using OpenAI for ${context}`);
-
-      const errorContext = errorPosition !== 'unknown'
-        ? `The error is around position ${errorPosition}. Context: "${jsonString.substring(Math.max(0, Number(errorPosition) - 100), Math.min(jsonString.length, Number(errorPosition) + 100))}"`
-        : '';
-
-      const repairPrompt = `The following JSON is malformed and caused a parse error: "${parseError.message}"
-${errorContext}
-
-Please fix the JSON syntax errors and return ONLY the corrected, valid JSON. Do not add any explanations, markdown formatting, or code blocks.
-
-Common issues to fix:
-- Trailing commas in arrays or objects
-- Missing commas between array elements or object properties
-- Unescaped quotes in string values
-- Unclosed brackets or braces
-
-Malformed JSON:
-${jsonString}
-
-Return the fixed JSON:`;
-
-      const repairResponse = await openai.responses.create({
-        model: 'gpt-4.1-mini',
-        input: [
-          {
-            role: 'system',
-            content: 'You are a JSON repair expert. Return ONLY valid JSON without any markdown, code blocks, or explanations. Fix syntax errors while preserving all data.',
-          },
-          {
-            role: 'user',
-            content: repairPrompt,
-          },
-        ]
-      });
-
-      const repairedContent = repairResponse.output_text;
-      if (!repairedContent) {
-        throw new Error('Empty response from JSON repair attempt');
-      }
-
-      const cleanedRepaired = stripMarkdownJson(repairedContent);
-      const parsed = JSON.parse(cleanedRepaired);
-
-      logger.info(`Successfully repaired JSON for ${context}`);
-      return parsed;
-    } catch (repairError: any) {
-      logger.error({ error: repairError.message }, `JSON repair failed for ${context}`);
-      throw new Error(`JSON parse failed and repair attempt failed: ${parseError.message}. Repair error: ${repairError.message}`);
-    }
-  }
-}
-
-/**
- * Create roadmap with skills
- */
 export const createRoadmap = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.userId;
     const { title, career_goal, experience, skills }: CreateRoadmapDTO = req.body;
 
-    // Validation
     if (!title || !career_goal || !experience) {
       res.status(400).json({
         success: false,
@@ -140,7 +29,6 @@ export const createRoadmap = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    // Create roadmap with skills in one transaction
     const roadmap = await prisma.roadmap.create({
       data: {
         userId: userId!,
@@ -168,28 +56,9 @@ export const createRoadmap = async (req: AuthRequest, res: Response): Promise<vo
       },
     });
 
-    // Format response to match expected structure
-    const formattedRoadmap = {
-      ...roadmap,
-      skills: roadmap.roadmapSkills.map((rs: any) => ({
-        id: rs.id,
-        skill_id: rs.skill.id,
-        name: rs.skill.name,
-        description: rs.skill.description,
-        type: rs.skill.type,
-        category: rs.skill.category,
-        order: rs.order,
-        is_concluded: rs.isConcluded,
-        conclusion_date: rs.conclusionDate,
-      })),
-    };
-
-    // Remove roadmapSkills from response
-    delete (formattedRoadmap as any).roadmapSkills;
-
     res.status(201).json({
       success: true,
-      data: formattedRoadmap,
+      data: roadmap,
     } as ApiResponse);
   } catch (error) {
     logger.error({ error }, 'Create roadmap error');
@@ -200,14 +69,10 @@ export const createRoadmap = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
-/**
- * Get all roadmaps for a user
- */
 export const getUserRoadmaps = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
 
-    // Verify user has access to their own roadmaps
     if (req.userId !== userId) {
       res.status(403).json({
         success: false,
@@ -233,7 +98,6 @@ export const getUserRoadmaps = async (req: AuthRequest, res: Response): Promise<
       },
     });
 
-    // Format response to match expected structure
     const formattedRoadmaps = roadmaps.map((roadmap: any) => ({
       ...roadmap,
       percentualProgress: Number(roadmap.percentualProgress),
@@ -264,9 +128,6 @@ export const getUserRoadmaps = async (req: AuthRequest, res: Response): Promise<
   }
 };
 
-/**
- * Get single roadmap with all skills
- */
 export const getRoadmapById = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -295,7 +156,6 @@ export const getRoadmapById = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    // Verify user owns this roadmap
     if (roadmap.userId !== userId) {
       res.status(403).json({
         success: false,
@@ -304,7 +164,6 @@ export const getRoadmapById = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    // Format response to match expected structure with all new fields
     const formattedRoadmap = {
       ...roadmap,
       skills: roadmap.roadmapSkills.map((rs: any) => ({
@@ -332,7 +191,6 @@ export const getRoadmapById = async (req: AuthRequest, res: Response): Promise<v
       })),
     };
 
-    // Remove roadmapSkills from response
     delete (formattedRoadmap as any).roadmapSkills;
 
     res.json({
@@ -351,9 +209,6 @@ export const getRoadmapById = async (req: AuthRequest, res: Response): Promise<v
   }
 };
 
-/**
- * Get skills for a specific roadmap
- */
 export const getRoadmapSkills = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -382,7 +237,6 @@ export const getRoadmapSkills = async (req: AuthRequest, res: Response): Promise
       return;
     }
 
-    // Verify user owns this roadmap
     if (roadmap.userId !== userId) {
       res.status(403).json({
         success: false,
@@ -413,7 +267,6 @@ export const getRoadmapSkills = async (req: AuthRequest, res: Response): Promise
       skills.forEach(s => prerequisiteSkillsMap.set(s.id, { id: s.id, name: s.name }));
     }
 
-    // Format skills with all new metadata
     const formattedSkills = roadmap.roadmapSkills.map((rs: any) => {
       const prerequisiteIds = (rs.prerequisites as string[]) || [];
       const prerequisiteSkills = prerequisiteIds
@@ -463,10 +316,8 @@ export const getRoadmapSkills = async (req: AuthRequest, res: Response): Promise
   }
 };
 
-/**
- * Get a single skill from a roadmap by ID
- * GET /api/roadmaps/:id/skills/:skillId
- */
+// Get a single skill from a roadmap by ID
+// GET /api/roadmaps/:id/skills/:skillId
 export const getRoadmapSkillById = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id, skillId } = req.params;
@@ -572,16 +423,13 @@ export const getRoadmapSkillById = async (req: AuthRequest, res: Response): Prom
   }
 };
 
-/**
- * Update skill progress (mark as completed)
- * Database triggers handle XP calculation and award
- */
+// Update skill progress (mark as completed)
+// Database triggers handle XP calculation and award
 export const updateSkillProgress = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id: roadmapId, skillId } = req.params; // skillId is actually roadmapSkillId
     const userId = req.userId;
 
-    // Get roadmapSkill and verify ownership
     const currentSkill = await prisma.roadmapSkill.findFirst({
       where: {
         id: skillId,
@@ -600,7 +448,6 @@ export const updateSkillProgress = async (req: AuthRequest, res: Response): Prom
       return;
     }
 
-    // Toggle completion status
     const updatedSkill = await prisma.roadmapSkill.update({
       where: {
         id: skillId,
@@ -611,24 +458,10 @@ export const updateSkillProgress = async (req: AuthRequest, res: Response): Prom
       },
     });
 
-    // The trigger handles roadmap progress update. We just need to fetch the new progress.
-    const updatedRoadmap = await prisma.roadmap.findUnique({
-      where: { id: roadmapId },
-      select: { percentualProgress: true },
-    });
-
-    // Get updated user XP and level
-    const user = await prisma.user.findUnique({
-      where: { id: userId! },
-      select: { currentXp: true, xpLevel: true },
-    });
-
     res.json({
       success: true,
       data: {
-        roadmapSkill: updatedSkill,
-        percentual_progress: updatedRoadmap?.percentualProgress,
-        user,
+        roadmapSkill: updatedSkill
       },
     } as ApiResponse);
   } catch (error) {
@@ -640,10 +473,8 @@ export const updateSkillProgress = async (req: AuthRequest, res: Response): Prom
   }
 };
 
-/**
- * Update milestone completion status
- * PUT /api/roadmaps/:id/skills/:skillId/milestones/:level
- */
+//Update milestone completion status
+//PUT /api/roadmaps/:id/skills/:skillId/milestones/:level
 export const updateMilestoneProgress = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id, skillId, level } = req.params;
@@ -763,15 +594,12 @@ export const updateMilestoneProgress = async (req: AuthRequest, res: Response): 
   }
 };
 
-/**
- * Delete roadmap by ID
- */
+// Delete roadmap by ID
 export const deleteRoadmap = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const userId = req.userId;
 
-    // Verify roadmap belongs to user
     const roadmap = await prisma.roadmap.findUnique({
       where: { id },
       select: { userId: true },
@@ -793,7 +621,6 @@ export const deleteRoadmap = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    // Delete roadmap (CASCADE will delete related roadmap_skills)
     await prisma.roadmap.delete({
       where: { id },
     });
@@ -811,10 +638,6 @@ export const deleteRoadmap = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
-/**
- * Generate AI-powered skill recommendations for roadmap
- * POST /api/roadmaps/generate
- */
 export const generateRoadmapSuggestions = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { career_goal, experience } = req.body;
@@ -827,7 +650,6 @@ export const generateRoadmapSuggestions = async (req: AuthRequest, res: Response
       return;
     }
 
-    // Get all available skills from database
     const allSkills = await prisma.skill.findMany({
       select: {
         id: true,
@@ -846,7 +668,6 @@ export const generateRoadmapSuggestions = async (req: AuthRequest, res: Response
     if (!openai) {
       logger.warn('OpenAI not configured, returning basic skill suggestions');
 
-      // Fallback: Return top 10 skills as suggestions
       const suggestions = allSkills.slice(0, 10).map((skill) => ({
         skill_id: skill.id,
         name: skill.name,
@@ -855,7 +676,6 @@ export const generateRoadmapSuggestions = async (req: AuthRequest, res: Response
         reason: 'Skill recomendada para beginners',
       }));
 
-      // Generate auto title
       const title = `Trilha de Carreira: ${career_goal}`;
 
       res.json({
@@ -868,7 +688,6 @@ export const generateRoadmapSuggestions = async (req: AuthRequest, res: Response
       return;
     }
 
-    // Build prompt for OpenAI
     const skillsList = allSkills
       .map((s) => `- ${s.name} (${s.type} skill, category: ${s.category || 'geral'})`)
       .join('\n');
@@ -892,7 +711,6 @@ Retorne APENAS um JSON válido no seguinte formato (sem markdown, sem code block
   ]
 }`;
 
-    // Call OpenAI Responses API with web search
     const response = await openai!.responses.create({
       model: 'gpt-4.1-mini',
       tools: [{ type: 'web_search' }],
@@ -913,11 +731,10 @@ Retorne APENAS um JSON válido no seguinte formato (sem markdown, sem code block
       throw new Error('Empty response from OpenAI');
     }
 
-    const cleanedJson = stripMarkdownJson(aiResponse);
-    const parsedResponse = await parseJsonWithFallback(cleanedJson, 'roadmap suggestions');
+    const cleanedJson = JsonParserService.stripMarkdownJson(aiResponse);
+    const parsedResponse = await JsonParserService.parseWithFallback(cleanedJson, 'roadmap suggestions');
     const { skills: aiSkills } = parsedResponse;
 
-    // Match AI suggestions to actual skill IDs from database
     const suggestions = aiSkills
       .map((aiSkill: any) => {
         const matchedSkill = allSkills.find(
@@ -956,10 +773,8 @@ Retorne APENAS um JSON válido no seguinte formato (sem markdown, sem code block
   }
 };
 
-/**
- * Generate complete AI-powered roadmap with web search for resources
- * POST /api/roadmaps/generate-complete
- */
+// Generate complete AI-powered roadmap with web search for resources
+// POST /api/roadmaps/generate-complete
 export const generateCompleteRoadmap = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.userId;
@@ -981,7 +796,6 @@ export const generateCompleteRoadmap = async (req: AuthRequest, res: Response): 
       return;
     }
 
-    // Get all available skills
     const allSkills = await prisma.skill.findMany({
       select: {
         id: true,
@@ -997,7 +811,6 @@ export const generateCompleteRoadmap = async (req: AuthRequest, res: Response): 
       ],
     });
 
-    // Get selected skills from the list
     const selectedSkills = allSkills.filter((s: any) => selected_skill_ids.includes(s.id));
 
     if (selectedSkills.length === 0) {
@@ -1013,7 +826,6 @@ export const generateCompleteRoadmap = async (req: AuthRequest, res: Response): 
     if (!openai) {
       logger.warn('OpenAI not configured, creating basic roadmap');
 
-      // Fallback: Create roadmap with selected skills
       const roadmap = await prisma.roadmap.create({
         data: {
           userId: userId!,
@@ -1064,7 +876,6 @@ export const generateCompleteRoadmap = async (req: AuthRequest, res: Response): 
       return;
     }
 
-    // Build skills list from selected skills
     const skillsList = selectedSkills
       .map((s: any) => `- ${s.name} (${s.type} skill, ${s.category || 'geral'})`)
       .join('\n');
@@ -1095,7 +906,6 @@ Retorne um JSON válido com:
   ]
 }`;
 
-    // Use Responses API for skill recommendation with web search
     const response = await openai!.responses.create({
       model: 'gpt-4.1-mini',
       tools: [{ type: 'web_search' }],
@@ -1116,11 +926,10 @@ Retorne um JSON válido com:
       throw new Error('Empty AI response');
     }
 
-    const cleanedJson = stripMarkdownJson(aiResponse);
-    const parsedResponse = await parseJsonWithFallback(cleanedJson, 'complete roadmap structure');
+    const cleanedJson = JsonParserService.stripMarkdownJson(aiResponse);
+    const parsedResponse = await JsonParserService.parseWithFallback(cleanedJson, 'complete roadmap structure');
     const { titulo, skills: aiSkills } = parsedResponse;
 
-    // Match AI skills to selected skills and preserve AI-provided order and metadata
     const skillsMap = new Map();
     aiSkills.forEach((aiSkill: any) => {
       const matched = selectedSkills.find(
@@ -1144,7 +953,6 @@ Retorne um JSON válido com:
 
     logger.info(`AI organized ${organizedSkills.length} selected skills for: ${career_goal}`);
 
-    // Batch request: Get resources and milestones for ALL skills in one API call
     const batchPrompt = `Para as seguintes skills de um roadmap de ${career_goal}, encontre 2-3 recursos de aprendizado GRATUITOS para CADA skill e crie 5-7 marcos progressivos de aprendizado para CADA skill.
 
 Skills: ${organizedSkills.map((s: any) => s.name).join(', ')}
@@ -1201,10 +1009,10 @@ Retorne JSON com esta estrutura EXATA:
       const batchContent = batchResponse.output_text;
       logger.debug(`Raw batch API response (first 1000 chars): ${batchContent.substring(0, 1000)}`);
 
-      const cleanedBatchJson = stripMarkdownJson(batchContent);
+      const cleanedBatchJson = JsonParserService.stripMarkdownJson(batchContent);
       logger.debug(`Cleaned batch JSON (first 1000 chars): ${cleanedBatchJson.substring(0, 1000)}`);
 
-      const batchData = await parseJsonWithFallback(cleanedBatchJson, 'batch resource and milestones data');
+      const batchData = await JsonParserService.parseWithFallback(cleanedBatchJson, 'batch resource and milestones data');
 
       skillsWithResources = organizedSkills.map((skill: any) => {
         const skillData = batchData.skills_data?.find(
@@ -1239,7 +1047,6 @@ Retorne JSON com esta estrutura EXATA:
       }));
     }
 
-    // Map prerequisites from skill names to IDs
     const skillNameToId = new Map(skillsWithResources.map((s: any) => [s.name?.toLowerCase(), s.id]));
 
     const skillsWithMappedPrereqs = skillsWithResources.map((skill: any) => {
@@ -1253,7 +1060,6 @@ Retorne JSON com esta estrutura EXATA:
       };
     });
 
-    // Create roadmap with skills, milestones, and metadata
     const roadmap = await prisma.roadmap.create({
       data: {
         userId: userId!,
@@ -1285,8 +1091,6 @@ Retorne JSON com esta estrutura EXATA:
       },
     });
 
-    // Create skill resources - map to roadmapSkill IDs (junction table)
-    // Create a mapping from skill.id to roadmapSkill.id
     const skillIdToRoadmapSkillId = new Map(
       (roadmap.roadmapSkills as any[]).map((rs: any) => [rs.skillId, rs.id])
     );
@@ -1314,7 +1118,6 @@ Retorne JSON com esta estrutura EXATA:
       }
     }
 
-    // Fetch complete roadmap with resources
     const completeRoadmap = await prisma.roadmap.findUnique({
       where: { id: roadmap.id },
       include: {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View, StyleSheet, Text, Platform } from 'react-native';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -18,11 +18,11 @@ import ChatBotScreen from '../screens/ChatBotScreen';
 import SkillDetailScreen from '../screens/SkillDetailScreen';
 import { RootStackParamList, TabParamList } from './types';
 import { COLORS, TYPOGRAPHY, STORAGE_KEYS } from '../constants';
+import { logger } from '../utils/logger';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
-// Bottom Tab Navigator para telas autenticadas
 const MainTabs: React.FC = () => {
   const insets = useSafeAreaInsets();
   
@@ -109,41 +109,32 @@ const AppNavigator: React.FC = () => {
   }, [user, isLoading]);
 
   const checkOnboardingStatus = async () => {
-    console.log('🔄 Checking onboarding status - isLoading:', isLoading, 'user:', user?.id);
     
-    // Aguarda verificação de sessão inicial
     if (isLoading) {
-      console.log('⏳ Still loading auth, waiting...');
       return;
     }
 
-    console.log('✅ Auth loaded, checking onboarding...');
 
-    // Se não há usuário (logout), reseta o onboarding
     if (!user) {
-      console.log('🔄 No user, resetting onboarding status');
       setHasSeenOnboarding(false);
       setInitializing(false);
       return;
     }
 
     try {
-      // Verifica se o usuário já viu o onboarding de login
       const onboardingKey = `${STORAGE_KEYS.ONBOARDING}_login_${user.id}`;
       const seen = await AsyncStorage.getItem(onboardingKey);
-      console.log('🎯 Onboarding status:', { userId: user.id, seen: !!seen });
+      logger.debug('Onboarding status:', { userId: user.id, seen: !!seen });
       setHasSeenOnboarding(!!seen);
     } catch (error) {
       console.error('Error checking onboarding status:', error);
       setHasSeenOnboarding(true); // Em caso de erro, pula o onboarding
     } finally {
       setInitializing(false);
-      console.log('✅ Initialization complete');
     }
   };
 
   if (initializing) {
-    console.log('⏳ AppNavigator - Still initializing...');
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.brand.primary} />
@@ -151,15 +142,16 @@ const AppNavigator: React.FC = () => {
     );
   }
 
-  console.log('🎬 AppNavigator - Rendering with:', { 
-    userId: user?.id, 
+  logger.debug('Navigator state:', {
+    userId: user?.id,
     userNome: user?.name,
     hasSeenOnboarding,
-    isAuthenticated: !!user 
+    isAuthenticated: !!user
   });
 
   return (
     <Stack.Navigator
+      key={user ? `auth-${user.id}` : 'guest'}
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
@@ -167,7 +159,6 @@ const AppNavigator: React.FC = () => {
       }}
     >
       {user ? (
-        // Telas autenticadas
         <>
           {!hasSeenOnboarding && (
             <Stack.Screen
@@ -187,7 +178,6 @@ const AppNavigator: React.FC = () => {
           />
         </>
       ) : (
-        // Telas públicas
         <>
           <Stack.Screen name="OnboardingCadastro" component={OnboardingCadastroScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />

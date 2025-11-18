@@ -7,7 +7,7 @@ interface AuthContextType {
   isLoading: boolean;
   error: string | null;
   login: (credentials: LoginDTO) => Promise<boolean>;
-  cadastrar: (data: RegisterDTO) => Promise<boolean>;
+  register: (data: RegisterDTO) => Promise<boolean>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<IUser | null>;
 }

@@ -3,9 +3,6 @@ import prisma from '../lib/prisma';
 import logger from '../lib/logger';
 import type { ApiResponse, Skill } from '../types';
 
-/**
- * Get all skills from database
- */
 export const getAllSkills = async (_req: Request, res: Response): Promise<void> => {
   try {
     const skills = await prisma.skill.findMany({
@@ -28,9 +25,6 @@ export const getAllSkills = async (_req: Request, res: Response): Promise<void> 
   }
 };
 
-/**
- * Get single skill by ID
- */
 export const getSkillById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;

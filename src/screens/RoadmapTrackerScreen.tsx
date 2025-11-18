@@ -38,7 +38,6 @@ const RoadmapTrackerScreen: React.FC = () => {
 
   useFocusEffect(
     useCallback(() => {
-      console.log('🔄 RoadmapTrackerScreen ganhou foco, recarregando...');
       if (user) {
         carregarRoadmaps(user.id);
         if (roadmapSelecionado) {
@@ -151,7 +150,7 @@ const RoadmapTrackerScreen: React.FC = () => {
           {totalMilestones > 0 && (
             <View style={styles.progressInfo}>
               <Text style={styles.progressInfoText}>
-                📍 {completedMilestones}/{totalMilestones} marcos concluídos
+                {completedMilestones}/{totalMilestones} marcos concluídos
               </Text>
             </View>
           )}

@@ -1,4 +1,5 @@
 import ApiClient from './ApiClient';
+import { logger } from '../utils/logger';
 import type { ISkill } from '../types/models';
 
 class SkillService {
@@ -25,42 +26,42 @@ class SkillService {
         this.cache &&
         now - this.cacheTimestamp < this.CACHE_DURATION
       ) {
-        console.log('✅ Returning cached skills');
+        logger.info('Returning cached skills');
         return this.cache;
       }
 
-      console.log('📡 Fetching skills from API...');
+      logger.debug('Fetching skills from API...');
       const response = await ApiClient.get<ISkill[]>('/skills');
 
       if (!response.success || !response.data) {
-        console.error('❌ Failed to fetch skills:', response.error);
+        console.error('Failed to fetch skills:', response.error);
         return this.cache || [];
       }
 
       this.cache = response.data;
       this.cacheTimestamp = now;
 
-      console.log(`✅ Loaded ${this.cache.length} skills`);
+      console.log(`Loaded ${this.cache.length} skills`);
       return this.cache;
     } catch (error) {
-      console.error('❌ Error fetching skills:', error);
+      console.error('Error fetching skills:', error);
       return this.cache || [];
     }
   }
 
   public async getSkillById(skillId: string): Promise<ISkill | null> {
     try {
-      console.log(`📡 Fetching skill ${skillId}...`);
+      console.log(`Fetching skill ${skillId}...`);
       const response = await ApiClient.get<ISkill>(`/skills/${skillId}`);
 
       if (!response.success || !response.data) {
-        console.error('❌ Failed to fetch skill:', response.error);
+        console.error('Failed to fetch skill:', response.error);
         return null;
       }
 
       return response.data;
     } catch (error) {
-      console.error('❌ Error fetching skill:', error);
+      console.error('Error fetching skill:', error);
       return null;
     }
   }

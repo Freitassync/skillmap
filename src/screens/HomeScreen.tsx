@@ -32,7 +32,6 @@ const HomeScreen: React.FC = () => {
   useFocusEffect(
     useCallback(() => {
       const onFocus = async () => {
-        console.log('🏠 HomeScreen ganhou foco, recarregando dados...');
         const refreshedUser = await refreshUser();
         if (refreshedUser) {
           await carregarRoadmaps(refreshedUser.id);
@@ -47,7 +46,7 @@ const HomeScreen: React.FC = () => {
     if (!user) return null;
 
     for (let i = GAMIFICATION.niveis.length - 1; i >= 0; i--) {
-      if (user.xp_level >= GAMIFICATION.niveis[i].xpNecessario) {
+      if (user.current_xp >= GAMIFICATION.niveis[i].xpNecessario) {
         return GAMIFICATION.niveis[i];
       }
     }
@@ -69,7 +68,7 @@ const HomeScreen: React.FC = () => {
 
     if (!user || !levelAtual || !proximoNivel) return 0;
 
-    const xpNoNivelAtual = (user.current_xp || 0) - levelAtual.xpNecessario;
+    const xpNoNivelAtual = user.current_xp - levelAtual.xpNecessario;
     const xpNecessarioParaProximo = proximoNivel.xpNecessario - levelAtual.xpNecessario;
 
     return Math.round((xpNoNivelAtual / xpNecessarioParaProximo) * 100);
@@ -99,7 +98,6 @@ const HomeScreen: React.FC = () => {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-      {/* Header com dados do usuário */}
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Olá, {user.name}!</Text>
@@ -113,7 +111,6 @@ const HomeScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Card de Progresso */}
       <Card style={styles.progressCard}>
         <Text style={styles.cardTitle}>Progresso de Nível</Text>
         <View style={styles.progressBarContainer}>
@@ -126,7 +123,6 @@ const HomeScreen: React.FC = () => {
         )}
       </Card>
 
-      {/* Estatísticas */}
       <View style={styles.statsRow}>
         <Card style={styles.statCard}>
           <Text style={styles.statValue}>{roadmaps.length}</Text>
@@ -144,7 +140,6 @@ const HomeScreen: React.FC = () => {
         </Card>
       </View>
 
-      {/* Ações Rápidas */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Ações Rápidas</Text>
 
@@ -162,7 +157,6 @@ const HomeScreen: React.FC = () => {
         />
       </View>
 
-      {/* Roadmaps Recentes */}
       {roadmaps.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Roadmaps Recentes</Text>

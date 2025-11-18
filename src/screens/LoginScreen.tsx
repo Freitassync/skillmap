@@ -45,14 +45,11 @@ const LoginScreen: React.FC = () => {
 
     setErrors({});
 
-    // Sanitiza dados
     const emailLimpo = sanitizeEmail(email);
 
-    // Tenta fazer login
     const sucesso = await login({ email: emailLimpo, senha });
 
     if (sucesso) {
-      // Mostra alerta de sucesso
       setShowAlert(true);
       // O AppNavigator detectará automaticamente a mudança de estado
       // e exibirá a tela apropriada (OnboardingLogin ou MainTabs)

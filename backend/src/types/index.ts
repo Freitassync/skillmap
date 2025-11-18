@@ -7,10 +7,8 @@ export interface User {
   name: string;
   email: string;
   password_hash: string;
-  xp_level: number;
   current_xp: number;
   creation_date: Date;
-  last_onboarding?: string;
 }
 
 export interface Roadmap {

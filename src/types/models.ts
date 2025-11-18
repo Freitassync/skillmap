@@ -7,10 +7,8 @@ export interface IUser {
   name: string;
   email: string;
   password_hash?: string;
-  xp_level: number;
-  current_xp?: number;
+  current_xp: number;
   creation_date: string;
-  last_onboarding?: string;
 }
 
 export interface ISkill {

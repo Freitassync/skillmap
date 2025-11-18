@@ -6,20 +6,29 @@ import {
   TouchableOpacity,
   Linking,
 } from 'react-native';
+import {
+  GraduationCap,
+  Video,
+  FileText,
+  Dumbbell,
+  Mic,
+  Book,
+  Wrench,
+  Rocket,
+  Library,
+  ExternalLink,
+} from 'lucide-react-native';
 import { COLORS, TYPOGRAPHY } from '../constants';
 import { Alert } from '../utils/alert';
 
 interface ResourceCardProps {
-  type: 'course' | 'article' | 'exercise' | 'podcast' | 'video' | 'documentation' | 'tutorial' | 'project';
+  type: string;
   title: string;
   url: string;
   platform?: string;
   is_free?: boolean;
 }
 
-/**
- * Card para exibir recursos de aprendizado (cursos, artigos, exercícios)
- */
 const ResourceCard: React.FC<ResourceCardProps> = ({
   type,
   title,
@@ -27,29 +36,28 @@ const ResourceCard: React.FC<ResourceCardProps> = ({
   platform,
   is_free = true,
 }) => {
-  /**
-   * Retorna ícone baseado no type de recurso
-   */
-  const getTypeIcon = (): string => {
+  const getTypeIcon = () => {
+    const iconProps = { size: 20, color: getTypeColor() };
+
     switch (type) {
-      case 'course':
-        return '🎓';
-      case 'video':
-        return '📺';
-      case 'article':
-        return '📝';
-      case 'exercise':
-        return '💪';
+      case 'curso':
+        return <GraduationCap {...iconProps} />;
+      case 'vídeo':
+        return <Video {...iconProps} />;
+      case 'artigo':
+        return <FileText {...iconProps} />;
+      case 'exercício':
+        return <Dumbbell {...iconProps} />;
       case 'podcast':
-        return '🎙️';
-      case 'documentation':
-        return '📖';
+        return <Mic {...iconProps} />;
+      case 'documentação':
+        return <Book {...iconProps} />;
       case 'tutorial':
-        return '🛠️';
-      case 'project':
-        return '🚀';
+        return <Wrench {...iconProps} />;
+      case 'projeto':
+        return <Rocket {...iconProps} />;
       default:
-        return '📚';
+        return <Library {...iconProps} />;
     }
   };
 
@@ -58,43 +66,17 @@ const ResourceCard: React.FC<ResourceCardProps> = ({
    */
   const getTypeColor = (): string => {
     switch (type) {
-      case 'course':
-      case 'video':
+      case 'curso':
+      case 'vídeo':
         return COLORS.brand.primary;
-      case 'article':
+      case 'artigo':
         return COLORS.info.main;
-      case 'exercise':
+      case 'exercício':
         return COLORS.warning.main;
       case 'podcast':
         return COLORS.success.main;
       default:
         return COLORS.text.secondary;
-    }
-  };
-
-  /**
-   * Retorna label do type
-   */
-  const getTypeLabel = (): string => {
-    switch (type) {
-      case 'course':
-        return 'Curso';
-      case 'video':
-        return 'Vídeo';
-      case 'article':
-        return 'Artigo';
-      case 'exercise':
-        return 'Exercício';
-      case 'podcast':
-        return 'Podcast';
-      case 'documentation':
-        return 'Documentação';
-      case 'tutorial':
-        return 'Tutorial';
-      case 'project':
-        return 'Projeto';
-      default:
-        return 'Recurso';
     }
   };
 
@@ -122,12 +104,11 @@ const ResourceCard: React.FC<ResourceCardProps> = ({
       onPress={handleOpenResource}
       activeOpacity={0.7}
     >
-      {/* Cabeçalho com type e platform */}
       <View style={styles.header}>
         <View style={styles.typeContainer}>
-          <Text style={styles.typeIcon}>{getTypeIcon()}</Text>
+          <View style={styles.typeIcon}>{getTypeIcon()}</View>
           <Text style={[styles.typeLabel, { color: getTypeColor() }]}>
-            {getTypeLabel()}
+            {type.toUpperCase()}
           </Text>
         </View>
 
@@ -138,12 +119,10 @@ const ResourceCard: React.FC<ResourceCardProps> = ({
         )}
       </View>
 
-      {/* Título do recurso */}
       <Text style={styles.title} numberOfLines={2}>
         {title}
       </Text>
 
-      {/* Rodapé com free badge */}
       {is_free && (
         <View style={styles.footer}>
           <View style={styles.freeBadge}>
@@ -152,9 +131,8 @@ const ResourceCard: React.FC<ResourceCardProps> = ({
         </View>
       )}
 
-      {/* Indicador de link externo */}
       <View style={styles.linkIndicator}>
-        <Text style={styles.linkIcon}>🔗</Text>
+        <ExternalLink size={14} color={COLORS.text.secondary} style={styles.linkIcon} />
         <Text style={styles.linkText}>Abrir recurso</Text>
       </View>
     </TouchableOpacity>

@@ -14,10 +14,6 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
-pool.on('connect', () => {
-  logger.info('Connected to PostgreSQL database');
-});
-
 pool.on('error', (err) => {
   logger.error({ err }, 'Unexpected database error');
   process.exit(-1);
@@ -34,11 +30,8 @@ export const getClient = async (): Promise<PoolClient> => {
  * Execute a query
  */
 export const query = async (text: string, params?: any[]) => {
-  const start = Date.now();
   try {
     const res = await pool.query(text, params);
-    const duration = Date.now() - start;
-    logger.debug({ text: text.substring(0, 50), duration, rows: res.rowCount }, 'Executed query');
     return res;
   } catch (error) {
     logger.error({ error }, 'Query error');

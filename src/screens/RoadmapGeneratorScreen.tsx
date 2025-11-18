@@ -9,6 +9,7 @@ import {
   Dimensions,
   TouchableOpacity,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -350,13 +351,6 @@ const GeradorRoadmapScreen: React.FC = () => {
               containerStyle={styles.aiButton}
             />
 
-            {generationProgress && (
-              <View style={styles.progressContainer}>
-                <ActivityIndicator size="small" color={COLORS.brand.primary} />
-                <Text style={styles.progressText}>{generationProgress}</Text>
-              </View>
-            )}
-
             <View style={styles.divider} />
 
             <View style={styles.fieldContainer}>
@@ -442,7 +436,7 @@ const GeradorRoadmapScreen: React.FC = () => {
           </Card>
 
           <Card style={styles.tipCard}>
-            <Text style={styles.tipTitle}>💡 Dica</Text>
+            <Text style={styles.tipTitle}>Dica</Text>
             <Text style={styles.tipText}>
               Use o botão "Gerar Sugestões com IA" para receber recomendações personalizadas de
               skills baseadas no seu objetivo de carreira e nível de experiência.
@@ -450,6 +444,26 @@ const GeradorRoadmapScreen: React.FC = () => {
           </Card>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={isGeneratingComplete}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <ActivityIndicator size="large" color={COLORS.brand.primary} />
+            <Text style={styles.modalTitle}>Gerando seu roadmap...</Text>
+            <Text style={styles.modalDescription}>
+              Isso pode levar alguns minutos. Estamos criando uma trilha personalizada de aprendizado para você.
+            </Text>
+            {generationProgress && (
+              <Text style={styles.modalProgress}>{generationProgress}</Text>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -526,21 +540,6 @@ const styles = StyleSheet.create({
   completeButton: {
     marginBottom: SPACING.base,
     backgroundColor: COLORS.brand.primary,
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: SPACING.base,
-    gap: SPACING.sm,
-    backgroundColor: `${COLORS.brand.primary}10`,
-    borderRadius: RADIUS.md,
-    marginBottom: SPACING.base,
-  },
-  progressText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.primary,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   divider: {
     height: 1,
@@ -645,6 +644,50 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
     lineHeight: 18,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
+  },
+  modalContent: {
+    backgroundColor: COLORS.bg.primary,
+    borderRadius: RADIUS.lg,
+    padding: SPACING['2xl'],
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    gap: SPACING.base,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+    textAlign: 'center',
+    marginTop: SPACING.base,
+  },
+  modalDescription: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  modalProgress: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.brand.primary,
+    textAlign: 'center',
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    marginTop: SPACING.sm,
   },
 });
 

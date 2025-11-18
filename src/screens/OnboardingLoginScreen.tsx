@@ -12,6 +12,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { COLORS, SPACING, TYPOGRAPHY, RADIUS, STORAGE_KEYS } from '../constants';
 import { useAuth } from '../hooks/useAuth';
+import { LayoutDashboard, Sparkles, Target, MessageCircle } from 'lucide-react-native';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const isSmallDevice = SCREEN_WIDTH < 375;
@@ -24,26 +25,26 @@ const tutorialSteps = [
   {
     title: 'Explore o Dashboard',
     description: 'Aqui você vê seu nível de XP, roadmaps criados e estatísticas de progresso.',
-    emoji: '🏠',
     highlight: 'Home',
+    icon: LayoutDashboard,
   },
   {
     title: 'Gere Roadmaps com IA',
     description: 'Use nossa inteligência artificial para criar planos de carreira personalizados.',
-    emoji: '🎯',
     highlight: 'Gerador',
+    icon: Sparkles,
   },
   {
     title: 'Acompanhe Skills',
     description: 'Marque habilidades como concluídas e ganhe XP conforme progride!',
-    emoji: '✅',
     highlight: 'Tracker',
+    icon: Target,
   },
   {
     title: 'Converse com a IA',
     description: 'Tire dúvidas e receba orientação profissional no chat sempre que precisar.',
-    emoji: '💬',
     highlight: 'ChatBot',
+    icon: MessageCircle,
   },
 ];
 
@@ -56,7 +57,6 @@ const OnboardingLoginScreen: React.FC<Props> = ({ navigation }) => {
       try {
         const onboardingKey = `${STORAGE_KEYS.ONBOARDING}_login_${user.id}`;
         await AsyncStorage.setItem(onboardingKey, 'true');
-        console.log('✅ Onboarding marked as complete for user:', user.id);
       } catch (error) {
         console.error('Error marking onboarding as complete:', error);
       }
@@ -81,21 +81,24 @@ const OnboardingLoginScreen: React.FC<Props> = ({ navigation }) => {
 
   const step = tutorialSteps[currentStep];
   const isLastStep = currentStep === tutorialSteps.length - 1;
+  const IconComponent = step.icon;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.container}>
-        {/* Skip button */}
         {!isLastStep && (
           <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
             <Text style={styles.skipText}>Pular tutorial</Text>
           </TouchableOpacity>
         )}
 
-        {/* Content */}
         <View style={styles.content}>
-          <View style={styles.emojiContainer}>
-            <Text style={styles.emoji}>{step.emoji}</Text>
+          <View style={styles.iconContainer}>
+            <IconComponent
+              size={isSmallDevice ? 50 : 60}
+              color={COLORS.brand.primary}
+              strokeWidth={1.5}
+            />
           </View>
 
           <View style={styles.highlightBadge}>
@@ -105,13 +108,11 @@ const OnboardingLoginScreen: React.FC<Props> = ({ navigation }) => {
           <Text style={styles.title}>{step.title}</Text>
           <Text style={styles.description}>{step.description}</Text>
 
-          {/* Progress indicator */}
           <Text style={styles.progressText}>
             Passo {currentStep + 1} de {tutorialSteps.length}
           </Text>
         </View>
 
-        {/* Pagination dots */}
         <View style={styles.pagination}>
           {tutorialSteps.map((_, index) => (
             <View
@@ -124,7 +125,6 @@ const OnboardingLoginScreen: React.FC<Props> = ({ navigation }) => {
           ))}
         </View>
 
-        {/* Navigation button */}
         <TouchableOpacity style={styles.button} onPress={handleNext}>
           <Text style={styles.buttonText}>
             {isLastStep ? 'Começar a usar' : 'Próximo'}
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emojiContainer: {
+  iconContainer: {
     width: isSmallDevice ? 100 : 120,
     height: isSmallDevice ? 100 : 120,
     borderRadius: RADIUS.full,
@@ -167,9 +167,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: SPACING.lg,
-  },
-  emoji: {
-    fontSize: isSmallDevice ? 50 : 60,
   },
   highlightBadge: {
     backgroundColor: `${COLORS.brand.primary}33`,

@@ -189,14 +189,14 @@ const SkillDetailScreen: React.FC = () => {
 
           {skill.learning_objectives && (
             <Card style={styles.section}>
-              <Text style={styles.sectionTitle}>🎯 Objetivos de Aprendizado</Text>
+              <Text style={styles.sectionTitle}>Objetivos de Aprendizado</Text>
               <Text style={styles.sectionText}>{skill.learning_objectives}</Text>
             </Card>
           )}
 
           {skill.prerequisites && skill.prerequisites.length > 0 && (
             <Card style={styles.section}>
-              <Text style={styles.sectionTitle}>📋 Pré-requisitos</Text>
+              <Text style={styles.sectionTitle}>Pré-requisitos</Text>
               <View style={styles.prerequisitesList}>
                 {skill.prerequisites.map((prereq, idx) => (
                   <View key={prereq.id || idx} style={styles.prerequisiteItem}>
@@ -210,7 +210,7 @@ const SkillDetailScreen: React.FC = () => {
           {skill.milestones && skill.milestones.length > 0 && (
             <Card style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>📍 Marcos de Progresso</Text>
+                <Text style={styles.sectionTitle}>Marcos de Progresso</Text>
                 <Text style={styles.progressText}>
                   {completedMilestones}/{totalMilestones}
                 </Text>
@@ -268,7 +268,7 @@ const SkillDetailScreen: React.FC = () => {
 
           {resources.length > 0 && (
             <Card style={styles.section}>
-              <Text style={styles.sectionTitle}>📚 Recursos de Aprendizado</Text>
+              <Text style={styles.sectionTitle}>Recursos de Aprendizado</Text>
               <Text style={styles.sectionSubtitle}>
                 Toque nos recursos para abrir no navegador
               </Text>

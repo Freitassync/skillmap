@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { logger } from '../utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../constants';
 import AuthService from '../services/AuthService';
@@ -9,7 +10,7 @@ interface UseAuthReturn {
   isLoading: boolean;
   error: string | null;
   login: (credentials: LoginDTO) => Promise<boolean>;
-  cadastrar: (data: RegisterDTO) => Promise<boolean>;
+  register: (data: RegisterDTO) => Promise<boolean>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<IUser | null>;
 }
@@ -22,7 +23,6 @@ export const useAuth = (): UseAuthReturn => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Verifica sessão ao montar o hook
   useEffect(() => {
     verificarSessaoExistente();
   }, []);
@@ -30,10 +30,10 @@ export const useAuth = (): UseAuthReturn => {
   const verificarSessaoExistente = async () => {
     try {
       setIsLoading(true);
-      const userLogado = await AuthService.verificarSessao();
+      const userLogado = await AuthService.verifySession();
       setUser(userLogado);
     } catch (err) {
-      console.error('❌ Erro ao verificar sessão:', err);
+      console.error('Erro ao verificar sessão:', err);
     } finally {
       setIsLoading(false);
     }
@@ -54,7 +54,7 @@ export const useAuth = (): UseAuthReturn => {
         return false;
       }
     } catch (err) {
-      console.error('❌ Erro ao fazer login:', err);
+      console.error('Erro ao fazer login:', err);
       setError('Erro inesperado ao fazer login');
       return false;
     } finally {
@@ -62,12 +62,12 @@ export const useAuth = (): UseAuthReturn => {
     }
   }, []);
 
-  const cadastrar = useCallback(async (data: RegisterDTO): Promise<boolean> => {
+  const register = useCallback(async (data: RegisterDTO): Promise<boolean> => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const result = await AuthService.cadastrar(data);
+      const result = await AuthService.register(data);
 
       if (result.success && result.user) {
         setUser(result.user);
@@ -77,7 +77,7 @@ export const useAuth = (): UseAuthReturn => {
         return false;
       }
     } catch (err) {
-      console.error('❌ Erro ao cadastrar:', err);
+      console.error('Erro ao cadastrar:', err);
       setError('Erro inesperado ao cadastrar');
       return false;
     } finally {
@@ -87,11 +87,9 @@ export const useAuth = (): UseAuthReturn => {
 
   const logout = useCallback(async (): Promise<void> => {
     try {
-      // 1. Limpa dados de autenticação
       await AuthService.logout();
-      console.log('✅ useAuth.logout - Serviço de logout executado');
+      logger.debug('useAuth.logout - Serviço de logout executado');
       
-      // 2. Limpa estado do onboarding para forçar exibição na próxima vez
       try {
         const keys = await AsyncStorage.getAllKeys();
         const onboardingKeys = keys.filter(key => key.startsWith(STORAGE_KEYS.ONBOARDING));
@@ -99,29 +97,28 @@ export const useAuth = (): UseAuthReturn => {
           await AsyncStorage.multiRemove(onboardingKeys);
         }
       } catch (error) {
-        console.warn('⚠️ Erro ao limpar onboarding:', error);
+        console.warn('Erro ao limpar onboarding:', error);
       }
       
       setUser(null);
     } catch (err) {
-      console.error('❌ Erro ao fazer logout:', err);
+      console.error('Erro ao fazer logout:', err);
     }
   }, []);
 
   const refreshUser = useCallback(async (): Promise<IUser | null> => {
     try {
-      console.log('🔄 useAuth.refreshUser - Recarregando dados do usuário do backend');
-      const userLogado = await AuthService.verificarSessao();
+      logger.debug('useAuth.refreshUser - Recarregando dados do usuário do backend');
+      const userLogado = await AuthService.verifySession();
       if (userLogado) {
         setUser(userLogado);
-        console.log('✅ Usuário atualizado com sucesso:', {
-          xp_level: userLogado.xp_level,
+        console.log('Usuário atualizado com sucesso:', {
           current_xp: userLogado.current_xp,
         });
       }
       return userLogado;
     } catch (err) {
-      console.error('❌ Erro ao recarregar usuário:', err);
+      console.error('Erro ao recarregar usuário:', err);
       return null;
     }
   }, []);
@@ -131,7 +128,7 @@ export const useAuth = (): UseAuthReturn => {
     isLoading,
     error,
     login,
-    cadastrar,
+    register,
     logout,
     refreshUser,
   };

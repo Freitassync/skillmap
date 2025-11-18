@@ -1,8 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import * as dotenv from 'dotenv';
-import pool, { testConnection } from './config/database';
-import { runMigrations } from './config/migrations';
+import { testConnection } from './config/database';
 import logger from './lib/logger';
 
 // Import routes
@@ -25,7 +24,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // CORS configuration
 const corsOrigins = process.env.CORS_ORIGINS?.split(',').map((origin: string) => origin.trim()) || [
-  'http://localhost:8080',
+  'http://localhost:8085',
   'http://localhost:8081',
   'http://localhost:19000',
   'http://localhost:19006',
@@ -60,12 +59,6 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
-
-// Request logging
-app.use((req: Request, _res: Response, next: NextFunction) => {
-  logger.info({ method: req.method, path: req.path }, 'Incoming request');
-  next();
-});
 
 /**
  * Health check endpoint
@@ -123,9 +116,6 @@ const startServer = async () => {
     if (!dbConnected) {
       throw new Error('Failed to connect to database');
     }
-
-    // Run database migrations
-    await runMigrations(pool);
 
     // Start Express server
     app.listen(PORT, () => {

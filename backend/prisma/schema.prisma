@@ -17,10 +17,8 @@ model User {
   name               String         @db.VarChar(255)
   email              String         @unique @db.VarChar(255)
   passwordHash       String         @map("password_hash") @db.VarChar(255)
-  xpLevel            Int            @default(1) @map("xp_level")
   currentXp          Int            @default(0) @map("current_xp")
   creationDate       DateTime       @default(now()) @map("creation_date") @db.Timestamp()
-  lastOnboarding     String?        @map("last_onboarding") @db.VarChar(50)
 
   // Relations
   roadmaps           Roadmap[]
@@ -49,7 +47,7 @@ model Roadmap {
 
 model Skill {
   id            String            @id @default(uuid()) @db.Uuid
-  name          String            @db.VarChar(255)
+  name          String            @unique @db.VarChar(255)
   description   String            @db.Text
   type          SkillType
   category      String?           @db.VarChar(100)

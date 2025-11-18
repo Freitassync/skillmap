@@ -5,12 +5,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { COLORS, SPACING, TYPOGRAPHY, RADIUS } from '../constants';
+import { Sparkles, Map, TrendingUp, MessageCircle } from 'lucide-react-native';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const isSmallDevice = SCREEN_WIDTH < 375;
@@ -23,22 +23,22 @@ const slides = [
   {
     title: 'Bem-vindo ao SkillMap 4.0',
     description: 'Sua jornada de requalificação profissional começa aqui. Vamos te guiar passo a passo!',
-    emoji: '🚀',
+    icon: Sparkles,
   },
   {
     title: 'Crie Roadmaps Personalizados',
     description: 'Nossa IA te ajuda a criar planos de carreira sob medida para seus objetivos.',
-    emoji: '🗺️',
+    icon: Map,
   },
   {
     title: 'Acompanhe seu Progresso',
     description: 'Marque skills como concluídas, ganhe XP e acompanhe sua evolução em tempo real.',
-    emoji: '📈',
+    icon: TrendingUp,
   },
   {
     title: 'Assistente IA 24/7',
     description: 'Tire dúvidas e receba orientação profissional a qualquer momento com nosso chatbot.',
-    emoji: '🤖',
+    icon: MessageCircle,
   },
 ];
 
@@ -59,28 +59,29 @@ const OnboardingCadastroScreen: React.FC<Props> = ({ navigation }) => {
 
   const slide = slides[currentSlide];
   const isLastSlide = currentSlide === slides.length - 1;
+  const IconComponent = slide.icon;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.container}>
-        {/* Skip button */}
         {!isLastSlide && (
           <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
             <Text style={styles.skipText}>Pular</Text>
           </TouchableOpacity>
         )}
 
-        {/* Content */}
         <View style={styles.content}>
-          <View style={styles.emojiContainer}>
-            <Text style={styles.emoji}>{slide.emoji}</Text>
+          <View style={styles.iconContainer}>
+            <IconComponent
+              size={isSmallDevice ? 60 : 80}
+              color={COLORS.brand.primary}
+              strokeWidth={1.5}
+            />
           </View>
-
           <Text style={styles.title}>{slide.title}</Text>
           <Text style={styles.description}>{slide.description}</Text>
         </View>
 
-        {/* Pagination dots */}
         <View style={styles.pagination}>
           {slides.map((_, index) => (
             <View
@@ -93,14 +94,12 @@ const OnboardingCadastroScreen: React.FC<Props> = ({ navigation }) => {
           ))}
         </View>
 
-        {/* Navigation button */}
         <TouchableOpacity style={styles.button} onPress={handleNext}>
           <Text style={styles.buttonText}>
             {isLastSlide ? 'Começar' : 'Próximo'}
           </Text>
         </TouchableOpacity>
 
-        {/* Login link */}
         {isLastSlide && (
           <TouchableOpacity onPress={() => navigation.navigate('Login')}>
             <Text style={styles.loginLink}>
@@ -137,7 +136,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emojiContainer: {
+  iconContainer: {
     width: isSmallDevice ? 120 : 150,
     height: isSmallDevice ? 120 : 150,
     borderRadius: RADIUS.full,
@@ -145,9 +144,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: isSmallDevice ? SPACING.xl : SPACING['3xl'],
-  },
-  emoji: {
-    fontSize: isSmallDevice ? 60 : 80,
   },
   title: {
     fontSize: isSmallDevice ? TYPOGRAPHY.fontSize['2xl'] : TYPOGRAPHY.fontSize['3xl'],

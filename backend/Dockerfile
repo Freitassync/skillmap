@@ -25,6 +25,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Install PostgreSQL client for database checks
+RUN apk add --no-cache postgresql-client
+
 # Copy package files
 COPY package*.json ./
 
@@ -38,6 +41,10 @@ RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholde
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
 
+# Copy entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Expose port
 EXPOSE 3000
 
@@ -45,5 +52,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Start server
-CMD ["node", "dist/index.js"]
+# Start server with entrypoint script
+CMD ["docker-entrypoint.sh"]
