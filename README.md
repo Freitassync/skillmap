@@ -286,7 +286,7 @@ $$ LANGUAGE plpgsql;
 
 ### Diagrama Entidade-Relacionamento
 
-![prisma-erd(3)](https://github.com/user-attachments/assets/64b200f3-54a0-483c-8575-9e3253267bc1)
+![prisma-erd(4)](https://github.com/user-attachments/assets/f2959713-035f-487f-ad6a-9e90a55ba226)
 
 ### Entidades Principais
 
@@ -544,11 +544,6 @@ const response = await openai?.responses.create({
    - INSERT roadmap_skills (bulk)
    - INSERT skill_resources (bulk)
 ```
-
-**Custo por Roadmap:**
-- Input: ~500 tokens (prompt + skills)
-- Output: ~2000 tokens (milestones + recursos)
-- Custo: ~$0.008 USD por roadmap gerado
 
 ---
 
