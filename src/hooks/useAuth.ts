@@ -3,6 +3,7 @@ import { logger } from '../utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../constants';
 import AuthService from '../services/AuthService';
+import { reloadApp } from '../utils/appReload';
 import type { IUser, LoginDTO, RegisterDTO } from '../types/models';
 
 interface UseAuthReturn {
@@ -10,9 +11,11 @@ interface UseAuthReturn {
   isLoading: boolean;
   error: string | null;
   login: (credentials: LoginDTO) => Promise<boolean>;
-  register: (data: RegisterDTO) => Promise<boolean>;
+  register: (data: RegisterDTO, skipAutoReload?: boolean) => Promise<boolean>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<IUser | null>;
+  authChangeKey: number;
+  triggerAuthChange: () => Promise<void>;
 }
 
 /**
@@ -22,6 +25,7 @@ export const useAuth = (): UseAuthReturn => {
   const [user, setUser] = useState<IUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [authChangeKey, setAuthChangeKey] = useState(0);
 
   useEffect(() => {
     verificarSessaoExistente();
@@ -48,6 +52,12 @@ export const useAuth = (): UseAuthReturn => {
 
       if (result.success && result.user) {
         setUser(result.user);
+        setTimeout(async () => {
+          const reloaded = await reloadApp();
+          if (!reloaded) {
+            setAuthChangeKey(prev => prev + 1);
+          }
+        }, 300);
         return true;
       } else {
         setError(result.error || 'Erro ao fazer login');
@@ -62,7 +72,7 @@ export const useAuth = (): UseAuthReturn => {
     }
   }, []);
 
-  const register = useCallback(async (data: RegisterDTO): Promise<boolean> => {
+  const register = useCallback(async (data: RegisterDTO, skipAutoReload = false): Promise<boolean> => {
     try {
       setIsLoading(true);
       setError(null);
@@ -71,6 +81,14 @@ export const useAuth = (): UseAuthReturn => {
 
       if (result.success && result.user) {
         setUser(result.user);
+        if (!skipAutoReload) {
+          setTimeout(async () => {
+            const reloaded = await reloadApp();
+            if (!reloaded) {
+              setAuthChangeKey(prev => prev + 1);
+            }
+          }, 300);
+        }
         return true;
       } else {
         setError(result.error || 'Erro ao cadastrar');
@@ -89,7 +107,7 @@ export const useAuth = (): UseAuthReturn => {
     try {
       await AuthService.logout();
       logger.debug('useAuth.logout - Serviço de logout executado');
-      
+
       try {
         const keys = await AsyncStorage.getAllKeys();
         const onboardingKeys = keys.filter(key => key.startsWith(STORAGE_KEYS.ONBOARDING));
@@ -99,8 +117,15 @@ export const useAuth = (): UseAuthReturn => {
       } catch (error) {
         console.warn('Erro ao limpar onboarding:', error);
       }
-      
+
       setUser(null);
+
+      setTimeout(async () => {
+        const reloaded = await reloadApp();
+        if (!reloaded) {
+          setAuthChangeKey(prev => prev + 1);
+        }
+      }, 100);
     } catch (err) {
       console.error('Erro ao fazer logout:', err);
     }
@@ -123,6 +148,13 @@ export const useAuth = (): UseAuthReturn => {
     }
   }, []);
 
+  const triggerAuthChange = useCallback(async (): Promise<void> => {
+    const reloaded = await reloadApp();
+    if (!reloaded) {
+      setAuthChangeKey(prev => prev + 1);
+    }
+  }, []);
+
   return {
     user,
     isLoading,
@@ -131,5 +163,7 @@ export const useAuth = (): UseAuthReturn => {
     register,
     logout,
     refreshUser,
+    authChangeKey,
+    triggerAuthChange,
   };
 };

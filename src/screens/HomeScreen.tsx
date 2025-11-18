@@ -28,6 +28,10 @@ const HomeScreen: React.FC = () => {
   const { user, logout, refreshUser } = useAuth();
   const { roadmaps, isLoading, carregarRoadmaps } = useRoadmap();
 
+  const handleLogout = async () => {
+    await logout();
+  };
+
   // Recarrega roadmaps e dados do usuário quando a tela ganha foco
   useFocusEffect(
     useCallback(() => {
@@ -106,7 +110,7 @@ const HomeScreen: React.FC = () => {
           </Text>
         </View>
 
-        <TouchableOpacity onPress={logout} style={styles.logoutButton}>
+        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
           <Text style={styles.logoutText}>Sair</Text>
         </TouchableOpacity>
       </View>

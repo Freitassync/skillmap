@@ -21,7 +21,9 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.outis.skillmap",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -29,10 +31,14 @@
       "output": "single"
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-font"
     ],
     "extra": {
-      "apiBaseUrl": "http://localhost:3010/api"
+      "apiBaseUrl": "http://localhost:3010/api",
+      "eas": {
+        "projectId": "017af53a-e21c-4ec1-ba8f-29e78e893dff"
+      }
     }
   }
 }

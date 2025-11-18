@@ -21,7 +21,7 @@ services:
     ports:
       - "3010:3000"
     environment:
-      NODE_ENV: ${NODE_ENV:-development}
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER:-skillmap}:${POSTGRES_PASSWORD:-skillmap123}@postgres:5432/${POSTGRES_DB:-skillmap}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}

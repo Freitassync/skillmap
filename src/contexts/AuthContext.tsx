@@ -7,9 +7,11 @@ interface AuthContextType {
   isLoading: boolean;
   error: string | null;
   login: (credentials: LoginDTO) => Promise<boolean>;
-  register: (data: RegisterDTO) => Promise<boolean>;
+  register: (data: RegisterDTO, skipAutoReload?: boolean) => Promise<boolean>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<IUser | null>;
+  authChangeKey: number;
+  triggerAuthChange: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

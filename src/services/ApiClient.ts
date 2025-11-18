@@ -31,6 +31,9 @@ const request = async <T = any>(
   endpoint: string,
   data?: any
 ): Promise<ApiResponse<T>> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
   try {
     const token = await StorageService.getItem(STORAGE_KEYS.AUTH_TOKEN);
 
@@ -45,13 +48,17 @@ const request = async <T = any>(
     const options: RequestInit = {
       method,
       headers,
+      signal: controller.signal,
     };
 
     if (data && (method === 'POST' || method === 'PUT')) {
       options.body = JSON.stringify(data);
     }
 
+    console.log(`[API] ${method} ${API_BASE_URL}${endpoint}`);
     const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+    clearTimeout(timeoutId);
+
     const result = await response.json();
 
     if (!response.ok) {
@@ -62,12 +69,22 @@ const request = async <T = any>(
       };
     }
 
+    console.log(`[API] ${method} ${endpoint} - Success`);
     return result;
   } catch (error) {
-    console.error(`Network Error:`, error);
+    clearTimeout(timeoutId);
+    console.error(`[API] ${method} ${endpoint} - Error:`, error);
+
+    if (error instanceof Error && error.name === 'AbortError') {
+      return {
+        success: false,
+        error: 'Tempo de resposta esgotado. Verifique sua conexão.',
+      };
+    }
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      error: error instanceof Error ? error.message : 'Erro de conexão',
     };
   }
 };

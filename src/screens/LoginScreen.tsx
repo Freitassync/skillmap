@@ -51,8 +51,6 @@ const LoginScreen: React.FC = () => {
 
     if (sucesso) {
       setShowAlert(true);
-      // O AppNavigator detectará automaticamente a mudança de estado
-      // e exibirá a tela apropriada (OnboardingLogin ou MainTabs)
     } else {
       Alert.alert('Erro', MESSAGES.auth.loginError);
     }

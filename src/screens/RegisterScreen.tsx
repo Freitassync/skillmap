@@ -27,7 +27,7 @@ export type CadastroScreenNavigationProp = NativeStackNavigationProp<RootStackPa
 
 const CadastroScreen: React.FC = () => {
   const navigation = useNavigation<CadastroScreenNavigationProp>();
-  const { register, isLoading } = useAuth();
+  const { register, isLoading, triggerAuthChange } = useAuth();
 
   const [name, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -58,10 +58,17 @@ const CadastroScreen: React.FC = () => {
       email: emailLimpo,
       senha,
       confirmacao_senha: confirmacaoSenha,
-    });
+    }, true);
 
     if (sucesso) {
-      Alert.alert('Sucesso!', MESSAGES.auth.cadastroSuccess);
+      Alert.alert('Sucesso!', MESSAGES.auth.cadastroSuccess, [
+        {
+          text: 'OK',
+          onPress: async () => {
+            await triggerAuthChange();
+          }
+        }
+      ]);
     } else {
       Alert.alert('Erro', MESSAGES.auth.cadastroError);
     }
