@@ -1154,27 +1154,8 @@ Tabela de relacionamento many-to-many entre roadmaps e skills, com metadados adi
 
 #### 5.3. Relacionamentos (MER)
 
-```
-┌─────────┐         ┌──────────┐         ┌────────────────┐         ┌────────┐
-│  users  │ 1────N  │ roadmaps │ 1────N  │ roadmap_skills │ N────1  │ skills │
-└─────────┘         └──────────┘         └────────────────┘         └────────┘
-     │                                             │
-     │ 1                                           │ 1
-     │                                             │
-     │ N                                           │ N
-     │                                             │
-┌──────────────┐                          ┌─────────────────┐
-│chat_messages │                          │ skill_resources │
-└──────────────┘                          └─────────────────┘
-     │
-     │ 1
-     │
-     │ N
-     │
-┌──────────────┐
-│activity_log  │
-└──────────────┘
-```
+![prisma-erd(3)](https://github.com/user-attachments/assets/64b200f3-54a0-483c-8575-9e3253267bc1)
+
 
 **Cardinalidades:**
 - **1:N users → roadmaps**: Um usuário tem muitos roadmaps
@@ -2380,12 +2361,12 @@ Visualize a modelagem completa do banco de dados no arquivo `erd.svg` (raiz do p
 
 ## 👥 Equipe
 
-**Turma:** 2TDSPV
-
 **Integrantes:**
-- Cauã Mongs de Borba
-- Gustavo Kavulyak
-- Murillo Ferreira Ramos
+- Gabriel Freitas
+- Murilo Moura
+- Mateus Vicente
+- Roberto Felix
+- Felipe Cavalcanti
 
 **Instituição:** FIAP - Faculdade de Informática e Administração Paulista
 
