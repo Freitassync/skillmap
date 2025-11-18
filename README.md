@@ -9,12 +9,13 @@ Aplicativo mobile para requalificação profissional (reskilling/upskilling) com
 ## 📋 Índice
 
 1. [Visão Geral](#visão-geral)
-2. [Stack Tecnológica](#stack-tecnológica)
-3. [Funcionalidades Principais](#funcionalidades-principais)
-4. [Modelagem de Dados](#modelagem-de-dados)
-5. [Rotinas PL/PGSQL](#rotinas-plpgsql)
-6. [Execução com Docker](#execução-com-docker)
-7. [Resultados e Métricas](#resultados-e-métricas)
+2. [Última Refatoração](#última-refatoração-nov-2025)
+3. [Stack Tecnológica](#stack-tecnológica)
+4. [Funcionalidades Principais](#funcionalidades-principais)
+5. [Modelagem de Dados](#modelagem-de-dados)
+6. [Rotinas PL/PGSQL](#rotinas-plpgsql)
+7. [Execução com Docker](#execução-com-docker)
+8. [Resultados e Métricas](#resultados-e-métricas)
 
 ---
 
@@ -31,11 +32,26 @@ O **SkillMap 4.0** aplica Inteligência Artificial para promover o desenvolvimen
 
 ---
 
+## 🔄 Última Refatoração (Nov 2025)
+
+**BREAKING CHANGES aplicados com foco em DRY, SOLID e ACID:**
+
+- ✅ **Remoção da coluna `xp_level`**: Nível agora calculado em runtime (`level = floor(current_xp / 1000)`), reduzindo redundância e inconsistências
+- ✅ **Docker Entrypoint**: Script automatizado que aguarda PostgreSQL e executa migrations/seeds na primeira inicialização do container
+- ✅ **Migração para `lucide-react-native`**: Ícones modernos e consistentes substituindo bibliotecas fragmentadas
+- ✅ **Migrations Idempotentes**: Seeds integrados como migrations, garantindo consistência entre ambientes
+- ✅ **Novos Serviços**: `JsonParserService`, `PasswordHashingService`, formatters modulares (user, roadmap, chat)
+- ✅ **Middlewares Padronizados**: `asyncHandler` e `errorHandler` para tratamento consistente de erros
+- ✅ **Logging Estruturado**: Substituição de `console.log` por logger personalizado
+
+---
+
 ## 🔧 Stack Tecnológica
 
 | Camada | Tecnologia | Justificativa |
 |--------|-----------|---------------|
 | **Mobile** | React Native + TypeScript + Expo | Cross-platform, type-safe, renderização nativa |
+| **UI Components** | lucide-react-native | Ícones modernos e consistentes |
 | **Backend** | Node.js + Express + TypeScript | Event loop não-bloqueante, mesma linguagem |
 | **Banco de Dados** | PostgreSQL 16 | ACID, JSONB, triggers PL/pgSQL |
 | **ORM** | Prisma 6.19.0 | Type-safe queries, migrations automáticas |
@@ -215,7 +231,7 @@ Sistema 100% automatizado via **triggers PL/pgSQL** - backend apenas atualiza `i
 **Mecânicas:**
 - Completar skill: **+50 XP** (trigger automático)
 - Completar roadmap 100%: **+500 XP bônus** (trigger verifica completude)
-- Level-up: **a cada 1000 XP** (trigger calcula loops)
+- Level-up: **a cada 1000 XP** (calculado em runtime: `level = floor(current_xp / 1000)`)
 
 **Fluxo:**
 ```
@@ -223,10 +239,9 @@ Backend (1 query)          PostgreSQL (trigger)
 ─────────────────          ────────────────────
 UPDATE roadmap_skills   →  1. Award 50 XP
 SET is_concluded=true      2. Check roadmap 100%? → +500 XP
-WHERE id='skill-123'       3. Level-up loop (1000 XP = 1 level)
-                           4. UPDATE users XP/level
-                           5. UPDATE roadmap progress %
-                           6. INSERT activity_log (audit)
+WHERE id='skill-123'       3. UPDATE users current_xp
+                           4. UPDATE roadmap progress %
+                           5. INSERT activity_log (audit)
 ```
 
 **Código do Trigger (resumido):**
@@ -236,10 +251,9 @@ RETURNS TRIGGER AS $$
 DECLARE
   v_user_id UUID;
   v_new_xp INT;
-  v_new_level INT;
 BEGIN
   SELECT user_id INTO v_user_id FROM roadmaps WHERE id = NEW.roadmap_id;
-  SELECT current_xp, xp_level INTO v_new_xp, v_new_level FROM users WHERE id = v_user_id;
+  SELECT current_xp INTO v_new_xp FROM users WHERE id = v_user_id;
 
   IF NEW.is_concluded = true AND OLD.is_concluded = false THEN
     v_new_xp := v_new_xp + 50;
@@ -249,13 +263,7 @@ BEGIN
       v_new_xp := v_new_xp + 500;
     END IF;
 
-    -- Level-up automático
-    WHILE v_new_xp >= 1000 LOOP
-      v_new_level := v_new_level + 1;
-      v_new_xp := v_new_xp - 1000;
-    END LOOP;
-
-    UPDATE users SET current_xp = v_new_xp, xp_level = v_new_level WHERE id = v_user_id;
+    UPDATE users SET current_xp = v_new_xp WHERE id = v_user_id;
     INSERT INTO activity_log (...) VALUES (...); -- Auditoria
   END IF;
 
@@ -284,7 +292,7 @@ $$ LANGUAGE plpgsql;
 
 **1. users** - Usuários do sistema
 - `id`, `name`, `email`, `password_hash`
-- `xp_level`, `current_xp` (gamificação)
+- `current_xp` (gamificação - nível calculado em runtime: `level = floor(current_xp / 1000)`)
 - Relações: 1:N com roadmaps, chat_messages, activity_log
 
 **2. roadmaps** - Trilhas de aprendizado
@@ -321,8 +329,7 @@ $$ LANGUAGE plpgsql;
 ### Trigger: handle_skill_completion_update()
 
 **Propósito:** Automatizar TUDO ao completar uma skill:
-- Award 50 XP ao usuário
-- Calcular level-up (1000 XP = 1 nível)
+- Award 50 XP ao usuário (`current_xp` - nível calculado em runtime)
 - Verificar conclusão 100% do roadmap → +500 XP bônus
 - Atualizar `percentual_progress` do roadmap
 - Registrar em `activity_log` para auditoria
@@ -343,6 +350,7 @@ $$ LANGUAGE plpgsql;
 | Performance | 115ms (4 queries HTTP) | 8ms (1 query SQL) |
 | Consistência | Pode falhar entre queries | Atômico |
 | Testabilidade | Mockar Prisma | SQL direto |
+| Cálculo de nível | Armazenado (xp_level) | Runtime (current_xp / 1000) |
 
 ---
 
@@ -440,13 +448,12 @@ $$ LANGUAGE plpgsql;
 │  │                                                            │   │
 │  │  handle_skill_completion_update()                         │   │
 │  │  ├─ 1. SELECT user_id FROM roadmaps                       │   │
-│  │  ├─ 2. SELECT current_xp, xp_level FROM users             │   │
+│  │  ├─ 2. SELECT current_xp FROM users                       │   │
 │  │  ├─ 3. v_new_xp := v_new_xp + 50                          │   │
 │  │  ├─ 4. IF roadmap 100%? → v_new_xp += 500                 │   │
-│  │  ├─ 5. WHILE v_new_xp >= 1000 → level_up                  │   │
-│  │  ├─ 6. UPDATE users SET xp, level                         │   │
-│  │  ├─ 7. UPDATE roadmaps SET percentual_progress            │   │
-│  │  └─ 8. INSERT activity_log (auditoria)                    │   │
+│  │  ├─ 5. UPDATE users SET current_xp                        │   │
+│  │  ├─ 6. UPDATE roadmaps SET percentual_progress            │   │
+│  │  └─ 7. INSERT activity_log (auditoria)                    │   │
 │  │                                                            │   │
 │  └────────────────────────────────────────────────────────────┘   │
 │                                                                   │
@@ -462,7 +469,7 @@ $$ LANGUAGE plpgsql;
 │  refreshUser│                                       │              │
 │  () →       │  GET /auth/verify                     │              │
 │  Atualiza   │  ────────────────────────────►        │  SELECT user │
-│  UI         │  { xp_level: 3, current_xp: 120 }     │  WHERE id    │
+│  UI         │  { current_xp: 3120 } → level: 3      │  WHERE id    │
 │             │  ◄────────────────────────────        │              │
 └─────────────┘                                       └──────────────┘
 ```
@@ -561,7 +568,7 @@ Node.js >= 20.0.0 (apenas para frontend mobile)
 
 **Frontend (.env na raiz):**
 ```env
-API_BASE_URL=http://localhost:3000/api
+API_BASE_URL=http://localhost:3010/api
 OPENAI_API_KEY=sk-proj-...  # OPCIONAL - app funciona em modo mock
 NODE_ENV=development
 ```
@@ -593,12 +600,13 @@ docker-compose logs -f backend
 
 **O que acontece:**
 1. PostgreSQL 16 sobe na porta 5432
-2. Backend Node.js + Express sobe na porta 3000
-3. Migrations aplicadas automaticamente (tabelas criadas)
-4. Seeds executados (60 skills populadas)
-5. Triggers PL/pgSQL criados
+2. Backend Node.js + Express sobe na porta 3010
+3. `docker-entrypoint.sh` aguarda PostgreSQL ficar pronto
+4. Migrations aplicadas automaticamente via `prisma migrate deploy` (tabelas criadas + seeds incluídos)
+5. Triggers PL/pgSQL criados automaticamente
+6. Backend inicia após migrations completas
 
-**Pronto!** Backend rodando em `http://localhost:3000/api`
+**Pronto!** Backend rodando em `http://localhost:3010/api`
 
 ### 3. Rodar Frontend Mobile
 
@@ -674,7 +682,7 @@ docker-compose exec backend npx prisma migrate reset --force
 **Detalhamento - Antes (Backend TypeScript):**
 ```
 1. UPDATE roadmap_skills SET is_concluded=true   (30ms)
-2. SELECT + UPDATE users SET xp, level           (25ms)
+2. SELECT + UPDATE users SET current_xp          (25ms)
 3. UPDATE roadmaps SET percentual_progress       (30ms)
 4. INSERT activity_log                           (30ms)
 ────────────────────────────────────────────────
@@ -833,10 +841,11 @@ O SkillMap 4.0 demonstra como a tecnologia promove **desenvolvimento humano**:
 ### Boas Práticas Aplicadas
 
 - ✅ **Type Safety**: TypeScript end-to-end previne bugs
+- ✅ **DRY/SOLID/ACID**: Refatoração completa seguindo princípios fundamentais
 - ✅ **Database-Driven Logic**: Triggers automatizam regras de negócio
 - ✅ **Performance First**: Memoização, virtualização, logging assíncrono
 - ✅ **Developer Experience**: Prisma, Docker, hot reload, logs estruturados
-- ✅ **Clean Architecture**: Separação clara de responsabilidades
+- ✅ **Clean Architecture**: Separação clara de responsabilidades (formatters, middlewares, services)
 
 ---
 
