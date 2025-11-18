@@ -24,7 +24,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // CORS configuration
-const corsOrigins = process.env.CORS_ORIGINS?.split(',').map(origin => origin.trim()) || [
+const corsOrigins = process.env.CORS_ORIGINS?.split(',').map((origin: string) => origin.trim()) || [
   'http://localhost:8080',
   'http://localhost:8081',
   'http://localhost:19000',
@@ -40,7 +40,7 @@ app.use(
         return callback(null, true);
       }
 
-      const isAllowed = corsOrigins.some(allowedOrigin => {
+      const isAllowed = corsOrigins.some((allowedOrigin: string) => {
         if (allowedOrigin.includes('*')) {
           const pattern = new RegExp('^' + allowedOrigin.replace(/\*/g, '.*') + '$');
           return pattern.test(origin);

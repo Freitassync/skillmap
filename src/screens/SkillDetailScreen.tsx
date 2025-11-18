@@ -107,8 +107,8 @@ const SkillDetailScreen: React.FC = () => {
               const success = await marcarConcluida(roadmapId, skillId);
 
               if (success) {
-                await refreshUser();
                 Alert.alert('Parabéns!', 'Skill concluída! Você ganhou 50 XP!');
+                await refreshUser();
                 navigation.goBack();
               } else {
                 Alert.alert('Erro', 'Não foi possível concluir a skill.');

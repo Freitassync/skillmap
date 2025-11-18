@@ -15,6 +15,7 @@ export const COLORS = {
     secondary: '#E2E8F0',
     tertiary: '#CBD5F5',
     muted: '#94A3B8',
+    inverse: '#020617',
   },
   // Brand
   brand: {

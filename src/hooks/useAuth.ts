@@ -11,7 +11,7 @@ interface UseAuthReturn {
   login: (credentials: LoginDTO) => Promise<boolean>;
   cadastrar: (data: RegisterDTO) => Promise<boolean>;
   logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
+  refreshUser: () => Promise<IUser | null>;
 }
 
 /**
@@ -108,7 +108,7 @@ export const useAuth = (): UseAuthReturn => {
     }
   }, []);
 
-  const refreshUser = useCallback(async (): Promise<void> => {
+  const refreshUser = useCallback(async (): Promise<IUser | null> => {
     try {
       console.log('🔄 useAuth.refreshUser - Recarregando dados do usuário do backend');
       const userLogado = await AuthService.verificarSessao();
@@ -119,8 +119,10 @@ export const useAuth = (): UseAuthReturn => {
           current_xp: userLogado.current_xp,
         });
       }
+      return userLogado;
     } catch (err) {
       console.error('❌ Erro ao recarregar usuário:', err);
+      return null;
     }
   }, []);
 

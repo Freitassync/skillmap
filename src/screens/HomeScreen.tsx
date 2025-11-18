@@ -25,17 +25,22 @@ export type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamL
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const { roadmaps, isLoading, carregarRoadmaps } = useRoadmap();
 
-  // Recarrega roadmaps quando a tela ganha foco
+  // Recarrega roadmaps e dados do usuário quando a tela ganha foco
   useFocusEffect(
     useCallback(() => {
-      console.log('🏠 HomeScreen ganhou foco, recarregando roadmaps...');
-      if (user) {
-        carregarRoadmaps(user.id);
-      }
-    }, [user, carregarRoadmaps])
+      const onFocus = async () => {
+        console.log('🏠 HomeScreen ganhou foco, recarregando dados...');
+        const refreshedUser = await refreshUser();
+        if (refreshedUser) {
+          await carregarRoadmaps(refreshedUser.id);
+        }
+      };
+
+      onFocus();
+    }, [refreshUser, carregarRoadmaps])
   );
 
   const getNivelAtual = () => {

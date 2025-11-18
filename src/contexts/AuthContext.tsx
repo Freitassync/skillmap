@@ -9,7 +9,7 @@ interface AuthContextType {
   login: (credentials: LoginDTO) => Promise<boolean>;
   cadastrar: (data: RegisterDTO) => Promise<boolean>;
   logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
+  refreshUser: () => Promise<IUser | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
