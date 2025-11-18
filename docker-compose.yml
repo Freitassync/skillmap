@@ -28,7 +28,7 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8081,http://localhost:8085}
     depends_on:
-      - postgres:
+      - postgres
     volumes:
       - ./backend/src:/app/src
       - ./backend/package.json:/app/package.json
